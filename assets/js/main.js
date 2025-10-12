@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const paymentModeMeta = [
         { key: "online", label: "Online", color: getCssVariableValue("--brand-deep-green", "#2b8a3e") },
         { key: "cash", label: "Cash", color: getCssVariableValue("--brand-sand", "#c0aa83") },
-        { key: "none", label: "[None]", color: "#6c757d" }
+        { key: "none", label: "None", color: "#6c757d" }
     ];
 
     const uniqueHouseholdsList = (() => {
@@ -398,6 +398,14 @@ document.addEventListener("DOMContentLoaded", () => {
             .join(" ");
     };
 
+    const normalizePaymentModeKey = (value) => {
+        const raw = (value || "").toString().trim().toLowerCase();
+        if (!raw || raw === "[none]" || raw === "none") {
+            return "none";
+        }
+        return raw;
+    };
+
     const toBoolean = (value) => value === true || value === "yes" || value === "true";
 
     const toNumberOrNull = (value) => {
@@ -526,6 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const encounteredHouseholds = new Set();
         let totalSalary = 0;
         let totalExtra = 0;
+        let totalGas = 0;
         const paymentCounts = {
             online: 0,
             cash: 0,
@@ -544,13 +553,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 const salaryAmount = toNumberOrNull(data.salaryAmount);
                 const hasPaid = salaryAmount !== null && salaryAmount > 0;
                 const extraAmountValue = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) : null;
-                const normalizedMode = (data.paymentMode || "").toString().trim().toLowerCase() || "none";
+                const gasAmountValue = toBoolean(data.gasRefill) ? toNumberOrNull(data.gasAmount) : null;
+                const normalizedMode = normalizePaymentModeKey(data.paymentMode);
+                const countsAsPaid = (hasPaid || normalizedMode === "none") && Boolean(householdKey);
 
                 if (householdKey) {
                     encounteredHouseholds.add(householdKey);
                 }
 
-                if (hasPaid && householdKey) {
+                if (countsAsPaid) {
                     paidHouseholdSet.add(householdKey);
                 }
 
@@ -560,6 +571,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (extraAmountValue !== null) {
                     totalExtra += extraAmountValue;
+                }
+
+                if (gasAmountValue !== null) {
+                    totalGas += gasAmountValue;
                 }
 
                 if (Object.prototype.hasOwnProperty.call(paymentCounts, normalizedMode)) {
@@ -580,7 +595,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const paidHouseholds = Math.min(paidHouseholdSet.size, totalHouseholds);
         const pendingHouseholds = Math.max(totalHouseholds - paidHouseholds, 0);
-        const totalCollected = totalSalary + totalExtra;
+    const totalCollected = totalSalary + totalExtra + totalGas;
         const progressPercent = totalHouseholds > 0 ? Math.round((paidHouseholds / totalHouseholds) * 100) : 0;
         const clampedProgress = Math.min(Math.max(progressPercent, 0), 100);
         const totalPaymentEntries = paymentModeMeta.reduce((acc, mode) => acc + (paymentCounts[mode.key] || 0), 0);
@@ -625,6 +640,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (overviewPaymentEmpty) {
             overviewPaymentEmpty.toggleAttribute("hidden", hasPaymentData);
+        }
+
+        if (overviewPaymentLegend) {
+            overviewPaymentLegend.toggleAttribute("hidden", !hasPaymentData);
         }
 
         drawPaymentModeChart(paymentCounts, totalPaymentEntries);
@@ -687,12 +706,14 @@ document.addEventListener("DOMContentLoaded", () => {
             emptyDisplay: "N/A",
             getValue: (data) => {
                 const rawValue = (data.paymentMode || "").toString();
-                if (!rawValue.trim()) {
-                    return null;
+                const normalizedMode = normalizePaymentModeKey(rawValue);
+
+                if (normalizedMode === "none") {
+                    return "None";
                 }
 
-                if (rawValue.toLowerCase() === "none" || rawValue === "[none]") {
-                    return "[None]";
+                if (!rawValue.trim()) {
+                    return null;
                 }
 
                 return formatTitleCase(rawValue);
@@ -924,7 +945,7 @@ document.addEventListener("DOMContentLoaded", () => {
             salaryAmount: toNumberOrNull(formData.get("salary-amount")),
             extraAmount: toBoolean(extrasFlag),
             extraAmountValue: toBoolean(extrasFlag) ? toNumberOrNull(formData.get("extra-amount-value")) : null,
-            paymentMode: (formData.get("payment-mode") || "").toString().toLowerCase(),
+            paymentMode: normalizePaymentModeKey(formData.get("payment-mode")),
             paymentDate: formData.get("payment-date") || "",
             riceCollected: toBoolean(formData.get("rice-collected")),
             gasRefill: toBoolean(gasFlag),
