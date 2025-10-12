@@ -18,8 +18,67 @@
                     <span class="heading-toggle" data-english="Masjid Noor Bathar Committee" data-urdu="مسجد نور بٹھار کمیٹی" aria-live="assertive" aria-atomic="true"></span>
                 </h1>
                 <div class="view-toggle" role="tablist" aria-label="View selector">
-                    <button class="view-toggle__btn is-active" role="tab" aria-selected="true" aria-controls="view-dashboard" data-view="dashboard">Dashboard</button>
-                    <button class="view-toggle__btn" role="tab" aria-selected="false" aria-controls="view-form" data-view="form">Form</button>
+                    <button class="view-toggle__btn is-active" id="view-dashboard-tab" role="tab" aria-selected="true" aria-controls="view-dashboard" data-view="dashboard">Dashboard</button>
+                    <button class="view-toggle__btn" id="view-form-tab" role="tab" aria-selected="false" aria-controls="view-form" data-view="form">Form</button>
+                </div>
+                <div class="view-panels">
+                    <section class="view-panel is-active" id="view-dashboard" role="tabpanel" aria-labelledby="view-dashboard-tab">
+                        <div class="panel-card">
+                            <p class="panel-card__placeholder">Dashboard insights will appear here. Use the toggle to switch to the entry form.</p>
+                        </div>
+                    </section>
+                    <section class="view-panel" id="view-form" role="tabpanel" aria-labelledby="view-form-tab" hidden>
+                        <form class="panel-card form-card" data-entry-form>
+                            <div class="form-field">
+                                <label for="entry-month">Month</label>
+                                <input type="month" id="entry-month" name="month" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="household-name">Household Name</label>
+                                <input type="text" id="household-name" name="household-name" placeholder="Enter household name" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="salary-amount">Salary Amount (PKR)</label>
+                                <input type="number" id="salary-amount" name="salary-amount" min="0" step="100" placeholder="0" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="extra-amount">Extra Amount</label>
+                                <select id="extra-amount" name="extra-amount" required>
+                                    <option value="yes">Yes</option>
+                                    <option value="no" selected>No</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="payment-mode">Payment Mode</label>
+                                <select id="payment-mode" name="payment-mode" required>
+                                    <option value="">Select mode</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="bank-transfer">Bank Transfer</option>
+                                    <option value="mobile-wallet">Mobile Wallet</option>
+                                    <option value="cheque">Cheque</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="payment-date">Payment Date</label>
+                                <input type="date" id="payment-date" name="payment-date" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="rice-collected">Rice Collected</label>
+                                <select id="rice-collected" name="rice-collected" required>
+                                    <option value="yes">Yes</option>
+                                    <option value="no" selected>No</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="gas-refill">Gas Refill</label>
+                                <select id="gas-refill" name="gas-refill" required>
+                                    <option value="yes">Yes</option>
+                                    <option value="no" selected>No</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="form-card__submit">Submit Entry</button>
+                        </form>
+                    </section>
                 </div>
             </div>
         </section>

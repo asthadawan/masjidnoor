@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const contactForm = document.querySelector("[data-contact-form]");
     const currentYear = document.querySelector("[data-current-year]");
     const viewButtons = document.querySelectorAll(".view-toggle__btn");
+    const viewPanels = document.querySelectorAll(".view-panel");
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -68,18 +69,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (viewButtons.length) {
+        const activateView = (targetId) => {
+            const targetPanel = document.getElementById(`view-${targetId}`);
+            if (!targetPanel) {
+                return;
+            }
+
+            viewButtons.forEach((button) => {
+                const isActive = button.getAttribute("data-view") === targetId;
+                button.classList.toggle("is-active", isActive);
+                button.setAttribute("aria-selected", String(isActive));
+                button.setAttribute("tabindex", isActive ? "0" : "-1");
+            });
+
+            viewPanels.forEach((panel) => {
+                const isActive = panel === targetPanel;
+                panel.classList.toggle("is-active", isActive);
+                panel.toggleAttribute("hidden", !isActive);
+                panel.setAttribute("aria-hidden", String(!isActive));
+            });
+        };
+
         viewButtons.forEach((btn) => {
             btn.addEventListener("click", () => {
-                const targetView = btn.getAttribute("data-view");
-                viewButtons.forEach((button) => {
-                    const isActive = button === btn;
-                    button.classList.toggle("is-active", isActive);
-                    button.setAttribute("aria-selected", String(isActive));
-                });
-                // Placeholder: hook view switching logic here when sections exist.
-                console.debug(`Switched to view: ${targetView}`);
+                activateView(btn.getAttribute("data-view"));
             });
         });
+
+        // Ensure initial state is synced.
+        const initialButton = Array.from(viewButtons).find((btn) => btn.classList.contains("is-active"));
+        if (initialButton) {
+            activateView(initialButton.getAttribute("data-view"));
+        }
     }
 
     if (prayerGrid) {
