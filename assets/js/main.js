@@ -623,6 +623,31 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     };
 
+    const hasDuplicateEntryForPeriod = (month, household) => {
+        if (!month || !household || !Array.isArray(latestEntryDocs) || !latestEntryDocs.length) {
+            return false;
+        }
+
+        const normalizedMonth = month.toString().trim().toLowerCase();
+        const normalizedHousehold = household.toString().trim().toLowerCase();
+
+        if (!normalizedMonth || !normalizedHousehold) {
+            return false;
+        }
+
+        return latestEntryDocs.some((docSnapshot) => {
+            const data = docSnapshot.data ? docSnapshot.data() : null;
+            if (!data) {
+                return false;
+            }
+
+            const entryMonth = (data.month || "").toString().trim().toLowerCase();
+            const entryHousehold = (data.householdName || data["household-name"] || "").toString().trim().toLowerCase();
+
+            return entryMonth === normalizedMonth && entryHousehold === normalizedHousehold;
+        });
+    };
+
     const resetEntryFormState = () => {
         if (!entryForm) {
             return;
@@ -977,6 +1002,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const formData = new FormData(entryForm);
             const payload = buildEntryPayload(formData);
+
+            if (hasDuplicateEntryForPeriod(payload.month, payload.householdName)) {
+                setEntryStatus(`An entry for ${payload.householdName || "this household"} in ${payload.month || "this month"} already exists.`, "error", { persist: true });
+                return;
+            }
 
             setEntryStatus("Saving entry…", "info", { persist: true });
             if (entrySubmitButton) {
