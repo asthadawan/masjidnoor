@@ -848,7 +848,8 @@ body {
     .dashboard-card__filters,
     .dashboard-subheading,
     .entry-table-wrapper,
-    .dashboard-card__header {
+    .dashboard-card__header,
+    .hero {
         display: none !important;
     }
 
@@ -882,6 +883,17 @@ body {
         margin: 0.2rem 0 0;
         font-size: 0.95rem;
         text-align: center;
+    }
+
+    .print-sheet__link {
+        margin: 0.2rem 0 0;
+        text-align: center;
+        font-size: 0.95rem;
+    }
+
+    .print-sheet__link a {
+        color: rgba(0, 100, 0, 0.95);
+        text-decoration: underline;
     }
 
     .print-sheet__table {

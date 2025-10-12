@@ -563,6 +563,16 @@ document.addEventListener("DOMContentLoaded", () => {
         contextLine.textContent = `Month: ${monthLabel} • Household: ${householdLabel}`;
         container.appendChild(contextLine);
 
+        const linkLine = document.createElement("p");
+        linkLine.className = "print-sheet__link";
+        const link = document.createElement("a");
+        link.href = "https://www.masjidnoor.tech";
+        link.textContent = "www.masjidnoor.tech";
+        link.target = "_blank";
+        link.rel = "noopener";
+        linkLine.appendChild(link);
+        container.appendChild(linkLine);
+
         const totals = latestFilteredDocs.reduce((acc, docSnapshot) => {
             const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
             if (!data) {
