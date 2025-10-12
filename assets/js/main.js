@@ -74,6 +74,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const entryStatus = document.querySelector("[data-entry-status]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
     const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
+    const filterMonthSelect = document.querySelector("[data-filter-month]");
+    const filterHouseholdSelect = document.querySelector("[data-filter-household]");
+    const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+    ];
+    let latestEntryDocs = [];
 
     const storageKey = "masjidnoorFormAccess";
     let hasFormAccess = false;
@@ -233,6 +250,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formatYesNo = (flag) => (flag ? "Yes" : "No");
 
+    const formatMonthWithYear = (month, timestamp, fallbackDate) => {
+        if (!month) {
+            return "—";
+        }
+
+        const baseMonth = month.toString();
+
+        if (timestamp) {
+            try {
+                const dateInstance = typeof timestamp.toDate === "function" ? timestamp.toDate() : null;
+                const date = dateInstance instanceof Date ? dateInstance : new Date(timestamp);
+                if (!Number.isNaN(date.getTime())) {
+                    return `${baseMonth} ${date.getFullYear()}`;
+                }
+            } catch (error) {
+                // Ignore and fall back to alternate sources.
+            }
+        }
+
+        if (fallbackDate) {
+            const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+            const match = isoPattern.exec(fallbackDate);
+            if (match) {
+                const [, year] = match;
+                if (year) {
+                    return `${baseMonth} ${year}`;
+                }
+            }
+        }
+
+        return baseMonth;
+    };
+
     const formatIsoDate = (value) => {
         if (!value) {
             return "—";
@@ -278,6 +328,53 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         } catch (error) {
             return "Pending";
+        }
+    };
+
+    const setDefaultMonthFilter = () => {
+        if (!filterMonthSelect) {
+            return;
+        }
+
+        const currentMonthName = monthNames[new Date().getMonth()] || "";
+        const optionExists = Array.from(filterMonthSelect.options).some((option) => option.value === currentMonthName);
+        const targetValue = optionExists ? currentMonthName : "all";
+        filterMonthSelect.value = targetValue;
+    };
+
+    const updateHouseholdFilterOptions = (documents) => {
+        if (!filterHouseholdSelect) {
+            return;
+        }
+
+        const previouslySelected = filterHouseholdSelect.value;
+        const names = new Set();
+
+        documents.forEach((docSnapshot) => {
+            const data = docSnapshot.data();
+            const name = (data.householdName || data["household-name"] || "").toString();
+            if (name.trim()) {
+                names.add(name.trim());
+            }
+        });
+
+        const sortedNames = Array.from(names).sort((a, b) => a.localeCompare(b));
+
+        filterHouseholdSelect.innerHTML = "";
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "All households";
+        filterHouseholdSelect.appendChild(defaultOption);
+
+        sortedNames.forEach((name) => {
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            filterHouseholdSelect.appendChild(option);
+        });
+
+        if (previouslySelected && sortedNames.includes(previouslySelected)) {
+            filterHouseholdSelect.value = previouslySelected;
         }
     };
 
@@ -339,31 +436,49 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const fragment = document.createDocumentFragment();
+
+        const filteredDocs = documents.filter((docSnapshot) => {
+            const data = docSnapshot.data();
+            const monthMatch = filterMonthSelect && filterMonthSelect.value !== "all"
+                ? (data.month || "").toLowerCase() === filterMonthSelect.value.toLowerCase()
+                : true;
+            const householdMatch = filterHouseholdSelect && filterHouseholdSelect.value
+                ? (data.householdName || data["household-name"] || "").toString() === filterHouseholdSelect.value
+                : true;
+            return monthMatch && householdMatch;
+        });
+
+        if (!filteredDocs.length) {
+            entryTableWrapper.setAttribute("hidden", "");
+            entryEmptyState.textContent = "No entries match the selected filters.";
+            entryEmptyState.removeAttribute("hidden");
+            return;
+        }
+
         entryEmptyState.setAttribute("hidden", "");
         entryTableWrapper.removeAttribute("hidden");
 
-        const fragment = document.createDocumentFragment();
-
-        documents.forEach((docSnapshot) => {
+        filteredDocs.forEach((docSnapshot, index) => {
             const data = docSnapshot.data();
             const row = document.createElement("tr");
 
             const cells = [
-                data.month || "—",
+                String(index + 1),
+                formatMonthWithYear(data.month, data.createdAt, data.paymentDate),
                 data["householdName"] || data["household-name"] || "—",
                 formatInr(data.salaryAmount),
-                formatYesNo(data.extraAmount === true || data.extraAmount === "yes"),
-                formatInr(data.extraAmountValue),
-                data.paymentMode ? data.paymentMode.toString().toUpperCase() : "—",
-                formatIsoDate(data.paymentDate),
-                formatYesNo(data.riceCollected === true || data.riceCollected === "yes"),
-                formatYesNo(data.gasRefill === true || data.gasRefill === "yes"),
-                formatInr(data.gasAmount),
-                data.amountReason || "—",
-                formatTimestamp(data.createdAt)
+                data.extraAmount === true || data.extraAmount === "yes" ? "Yes" : "",
+                data.extraAmount === true || data.extraAmount === "yes" ? formatInr(data.extraAmountValue) : "",
+                data.riceCollected === true || data.riceCollected === "yes" ? "Yes" : "",
+                data.gasRefill === true || data.gasRefill === "yes" ? "Yes" : "",
+                data.gasRefill === true || data.gasRefill === "yes" ? formatInr(data.gasAmount) : "",
+                data.extraAmount === true || data.extraAmount === "yes" || data.gasRefill === true || data.gasRefill === "yes"
+                    ? (data.amountReason || "")
+                    : "",
             ];
 
-            const wrapColumns = new Set([1, 10]);
+            const wrapColumns = new Set([2, 9]);
 
             cells.forEach((value, index) => {
                 const cell = document.createElement("td");
@@ -380,6 +495,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         entryTableBody.appendChild(fragment);
+        if (defaultEmptyStateMessage) {
+            entryEmptyState.textContent = defaultEmptyStateMessage;
+        }
     };
 
     const toBoolean = (value) => value === true || value === "yes" || value === "true";
@@ -442,7 +560,9 @@ document.addEventListener("DOMContentLoaded", () => {
             entriesQueryRef,
             (snapshot) => {
                 setEntryLoadingState(false);
-                renderEntries(snapshot.docs);
+                latestEntryDocs = snapshot.docs;
+                updateHouseholdFilterOptions(latestEntryDocs);
+                renderEntries(latestEntryDocs);
             },
             (error) => {
                 setEntryLoadingState(false, "Unable to load entries.");
@@ -494,6 +614,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const hideAuthModal = () => {
         if (!authModal) {
+            setDefaultMonthFilter();
+
+            if (filterMonthSelect) {
+                filterMonthSelect.addEventListener("change", () => {
+                    renderEntries(latestEntryDocs);
+                });
+            }
+
+            if (filterHouseholdSelect) {
+                filterHouseholdSelect.addEventListener("change", () => {
+                    renderEntries(latestEntryDocs);
+                });
+            }
             return;
         }
 

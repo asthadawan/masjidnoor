@@ -25,26 +25,50 @@
                     <section class="view-panel is-active" id="view-dashboard" role="tabpanel" aria-labelledby="view-dashboard-tab">
                         <div class="panel-card dashboard-card" data-entry-dashboard>
                             <div class="dashboard-card__header">
-                                <h2 class="dashboard-card__heading">Recent Entries</h2>
+                                <h2 class="dashboard-card__heading">Data Display &amp; Actions</h2>
                                 <span class="dashboard-card__status" data-entry-loading hidden>Loading entries…</span>
+                            </div>
+                            <div class="dashboard-card__filters">
+                                <label class="dashboard-filter">
+                                    <span>Filter by month</span>
+                                    <select data-filter-month>
+                                        <option value="all">All months</option>
+                                        <option value="January">January</option>
+                                        <option value="February">February</option>
+                                        <option value="March">March</option>
+                                        <option value="April">April</option>
+                                        <option value="May">May</option>
+                                        <option value="June">June</option>
+                                        <option value="July">July</option>
+                                        <option value="August">August</option>
+                                        <option value="September">September</option>
+                                        <option value="October">October</option>
+                                        <option value="November">November</option>
+                                        <option value="December">December</option>
+                                    </select>
+                                </label>
+                                <label class="dashboard-filter">
+                                    <span>Filter by household</span>
+                                    <select data-filter-household>
+                                        <option value="" selected>All households</option>
+                                    </select>
+                                </label>
                             </div>
                             <p class="dashboard-card__empty" data-entry-empty hidden>No entries yet. Submit the form to populate the dashboard.</p>
                             <div class="entry-table-wrapper" data-entry-table-wrapper hidden>
                                 <table class="entry-table">
                                     <thead>
                                         <tr>
+                                            <th scope="col">#</th>
                                             <th scope="col">Month</th>
                                             <th scope="col">Household</th>
                                             <th scope="col">Salary (INR)</th>
                                             <th scope="col">Extra Amount</th>
                                             <th scope="col">Extra Value (INR)</th>
-                                            <th scope="col">Payment Mode</th>
-                                            <th scope="col">Payment Date</th>
                                             <th scope="col">Rice Collected</th>
                                             <th scope="col">Gas Refill</th>
                                             <th scope="col">Gas Amount (INR)</th>
                                             <th scope="col">Reason</th>
-                                            <th scope="col">Submitted</th>
                                         </tr>
                                     </thead>
                                     <tbody data-entry-table-body></tbody>
