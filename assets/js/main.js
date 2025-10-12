@@ -282,7 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formatIsoDate = (value) => {
         if (!value) {
-            return "—";
+            return "N/A";
         }
 
         const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -376,11 +376,23 @@ document.addEventListener("DOMContentLoaded", () => {
             label: "Payment Mode",
             wrap: false,
             hasValue: (data) => !!(data.paymentMode && data.paymentMode.toString().trim()),
-            getValue: (data) => formatTitleCase(data.paymentMode)
+            getValue: (data) => {
+                const rawValue = (data.paymentMode || "").toString();
+                if (!rawValue.trim()) {
+                    return "";
+                }
+
+                if (rawValue.toLowerCase() === "none" || rawValue === "[none]") {
+                    return "[None]";
+                }
+
+                return formatTitleCase(rawValue);
+            }
         },
         {
             id: "paymentDate",
             label: "Payment Date",
+            always: true,
             wrap: false,
             hasValue: (data) => !!data.paymentDate,
             getValue: (data) => formatIsoDate(data.paymentDate)
