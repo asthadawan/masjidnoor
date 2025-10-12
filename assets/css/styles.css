@@ -393,3 +393,19 @@ body {
     transform: translateY(-1px);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
 }
+
+.form-session-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 0.75rem;
+    background: rgba(0, 100, 0, 0.08);
+    color: var(--brand-charcoal);
+    font-weight: 600;
+    border: 1px solid rgba(0, 100, 0, 0.16);
+}
+
+.form-session-banner__icon {
+    font-size: 1.1rem;
+}

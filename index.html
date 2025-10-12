@@ -29,6 +29,10 @@
                     </section>
                     <section class="view-panel" id="view-form" role="tabpanel" aria-labelledby="view-form-tab" hidden>
                         <form class="panel-card form-card" data-entry-form>
+                            <div class="form-session-banner" data-session-timer hidden>
+                                <span class="form-session-banner__icon" aria-hidden="true">⏳</span>
+                                <span>Admin session active &bull; <span data-session-countdown>10:00</span> remaining</span>
+                            </div>
                             <div class="form-field">
                                 <label for="entry-month">Month</label>
                                 <select id="entry-month" name="month" required>

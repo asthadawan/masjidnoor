@@ -30,16 +30,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const authBackdrop = document.querySelector("[data-auth-backdrop]");
     const authUsernameInput = document.getElementById("auth-username");
     const authPasswordInput = document.getElementById("auth-password");
+    const sessionTimerBanner = document.querySelector("[data-session-timer]");
+    const sessionCountdownText = document.querySelector("[data-session-countdown]");
 
     const storageKey = "masjidnoorFormAccess";
     let hasFormAccess = false;
     let previousFocus = null;
-
-    try {
-        hasFormAccess = window.localStorage.getItem(storageKey) === "true";
-    } catch (error) {
-        hasFormAccess = false;
-    }
+    const sessionDurationMs = 10 * 60 * 1000;
+    let sessionExpiryTimestamp = null;
+    let sessionIntervalId = null;
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -119,16 +118,71 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    const markAccessGranted = () => {
-        hasFormAccess = true;
+    const readStoredSessionExpiry = () => {
         try {
-            window.localStorage.setItem(storageKey, "true");
+            const rawValue = window.localStorage.getItem(storageKey);
+            if (!rawValue) {
+                return null;
+            }
+
+            let parsedExpiry = null;
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (parsed && typeof parsed.expiresAt === "number") {
+                    parsedExpiry = parsed.expiresAt;
+                } else if (typeof parsed === "number") {
+                    parsedExpiry = parsed;
+                }
+            } catch (parseError) {
+                const numericValue = Number(rawValue);
+                if (Number.isFinite(numericValue)) {
+                    parsedExpiry = numericValue;
+                }
+            }
+
+            return typeof parsedExpiry === "number" ? parsedExpiry : null;
         } catch (error) {
-            // Ignore storage failures to keep form accessible within the current session.
+            return null;
         }
     };
 
-    const showAuthModal = () => {
+    const persistSessionExpiry = (expiresAt) => {
+        try {
+            window.localStorage.setItem(storageKey, JSON.stringify({ expiresAt }));
+        } catch (error) {
+            // Ignore storage failures and keep access scoped to the current session.
+        }
+    };
+
+    const clearStoredSession = () => {
+        try {
+            window.localStorage.removeItem(storageKey);
+        } catch (error) {
+            // Ignore storage failures.
+        }
+    };
+
+    const formatCountdown = (milliseconds) => {
+        const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    };
+
+    const stopSessionCountdown = () => {
+        if (sessionIntervalId) {
+            window.clearInterval(sessionIntervalId);
+            sessionIntervalId = null;
+        }
+        if (sessionTimerBanner) {
+            sessionTimerBanner.setAttribute("hidden", "");
+        }
+        if (sessionCountdownText) {
+            sessionCountdownText.textContent = formatCountdown(sessionDurationMs);
+        }
+    };
+
+    const showAuthModal = (message = "") => {
         if (!authModal) {
             return;
         }
@@ -136,9 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!authModal.classList.contains("auth-modal--visible")) {
             if (authForm) {
                 authForm.reset();
-            }
-            if (authError) {
-                authError.textContent = "";
             }
             previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             authModal.classList.add("auth-modal--visible");
@@ -148,6 +199,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     authUsernameInput.focus();
                 }
             }, 0);
+        }
+
+        if (authError) {
+            authError.textContent = message;
         }
     };
 
@@ -169,6 +224,77 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         previousFocus = null;
     };
+
+    const endSession = (shouldPrompt = false) => {
+        stopSessionCountdown();
+        hasFormAccess = false;
+        sessionExpiryTimestamp = null;
+        clearStoredSession();
+
+        const formPanel = document.getElementById("view-form");
+        if (formPanel && formPanel.classList.contains("is-active")) {
+            activateView("dashboard");
+        }
+
+        if (shouldPrompt) {
+            showAuthModal("Session expired. Please log in again.");
+        }
+    };
+
+    const updateSessionCountdownDisplay = () => {
+        if (!sessionTimerBanner || !sessionCountdownText) {
+            return;
+        }
+
+        if (!sessionExpiryTimestamp) {
+            stopSessionCountdown();
+            return;
+        }
+
+        const remaining = sessionExpiryTimestamp - Date.now();
+        if (remaining <= 0) {
+            endSession(true);
+            return;
+        }
+
+        sessionTimerBanner.removeAttribute("hidden");
+        sessionCountdownText.textContent = formatCountdown(remaining);
+    };
+
+    const startSessionCountdown = () => {
+        if (!sessionExpiryTimestamp) {
+            return;
+        }
+
+        if (sessionIntervalId) {
+            window.clearInterval(sessionIntervalId);
+        }
+
+        updateSessionCountdownDisplay();
+        sessionIntervalId = window.setInterval(updateSessionCountdownDisplay, 1000);
+    };
+
+    const restoreSessionFromStorage = () => {
+        const storedExpiry = readStoredSessionExpiry();
+
+        if (typeof storedExpiry === "number" && storedExpiry > Date.now()) {
+            hasFormAccess = true;
+            sessionExpiryTimestamp = storedExpiry;
+            startSessionCountdown();
+        } else if (typeof storedExpiry === "number") {
+            clearStoredSession();
+            stopSessionCountdown();
+        }
+    };
+
+    const markAccessGranted = () => {
+        hasFormAccess = true;
+        sessionExpiryTimestamp = Date.now() + sessionDurationMs;
+        persistSessionExpiry(sessionExpiryTimestamp);
+        startSessionCountdown();
+    };
+
+    restoreSessionFromStorage();
 
     if (viewButtons.length) {
         viewButtons.forEach((btn) => {
