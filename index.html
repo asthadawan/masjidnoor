@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masjid Noor Bathar Committee</title>
+    <meta name="description" content="Official website for Masjid Noor Bathar Committee, serving the community with prayer schedules, programs, and updates.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+        <div class="container">
+            <div class="branding">
+                <span class="branding__mark">Masjid Noor</span>
+                <span class="branding__sub">Bathar Committee</span>
+            </div>
+            <button class="menu-toggle" aria-controls="primary-navigation" aria-expanded="false">Menu</button>
+            <nav id="primary-navigation" class="site-nav" aria-label="Primary">
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#prayers">Prayers</a></li>
+                    <li><a href="#programs">Programs</a></li>
+                    <li><a href="#donations">Donations</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main">
+        <section id="home" class="hero">
+            <div class="container hero__container">
+                <div class="hero__content">
+                    <p class="hero__eyebrow">Community • Faith • Service</p>
+                    <h1 class="hero__heading">
+                        <span class="heading-toggle" data-english="Masjid Noor Bathar Committee" data-urdu="مسجد نور بٹھار کمیٹی" aria-live="assertive" aria-atomic="true"></span>
+                    </h1>
+                    <p class="hero__description">
+                        Rooted in tradition and focused on the future, Masjid Noor Bathar Committee supports worshippers, families, and neighbors through daily prayers, education, and community outreach.
+                    </p>
+                    <div class="hero__actions">
+                        <a class="btn btn--primary" href="#prayers">View Prayer Times</a>
+                        <a class="btn btn--outline" href="#donations">Support the Masjid</a>
+                    </div>
+                </div>
+                <aside class="hero__highlights" aria-label="Key highlights">
+                    <article class="highlight-card">
+                        <h2>Jumu'ah Timing</h2>
+                        <p>Khutbah every Friday at 1:15 PM, Iqamah at 1:45 PM.</p>
+                    </article>
+                    <article class="highlight-card">
+                        <h2>Community Hotline</h2>
+                        <p>Call <a href="tel:+923001234567">+92 300 123 4567</a> for urgent assistance or volunteer support.</p>
+                    </article>
+                </aside>
+            </div>
+        </section>
+
+        <section id="prayers" class="section section--alt">
+            <div class="container">
+                <header class="section__header">
+                    <h2>Daily Prayer Schedule</h2>
+                    <p>Stay aligned with congregation timings and plan your day around the five daily prayers.</p>
+                </header>
+                <div class="grid grid--prayer" data-prayer-grid></div>
+            </div>
+        </section>
+
+        <section id="programs" class="section">
+            <div class="container">
+                <header class="section__header">
+                    <h2>Community Programs</h2>
+                    <p>Join classes, circles, and outreach initiatives designed for all ages.</p>
+                </header>
+                <div class="grid grid--programs" data-program-grid></div>
+            </div>
+        </section>
+
+        <section id="donations" class="section section--accent">
+            <div class="container donation">
+                <div class="donation__content">
+                    <h2>Sustain the Masjid</h2>
+                    <p>Your contributions fund daily operations, charity drives, and facility improvements for future generations.</p>
+                    <ul class="donation__list">
+                        <li>Monthly pledge program with automated reminders</li>
+                        <li>Zakat distribution to verified local families</li>
+                        <li>Building fund for expansion and accessibility upgrades</li>
+                    </ul>
+                    <div class="donation__actions">
+                        <a class="btn btn--primary" href="#" data-donate-now>Donate Now</a>
+                        <a class="btn btn--outline" href="#contact">Talk to Finance Team</a>
+                    </div>
+                </div>
+                <aside class="donation__calculator" aria-label="Donation impact estimator">
+                    <h3>Donation Impact</h3>
+                    <form class="impact-form" data-impact-form>
+                        <label for="donation-amount">Select amount (PKR)</label>
+                        <input id="donation-amount" name="donation-amount" type="range" min="500" max="20000" step="500" value="2500">
+                        <output id="donation-output" for="donation-amount">PKR 2,500</output>
+                        <ul class="impact-list" data-impact-list></ul>
+                    </form>
+                </aside>
+            </div>
+        </section>
+
+        <section class="section section--alt" aria-labelledby="updates-heading">
+            <div class="container">
+                <header class="section__header">
+                    <h2 id="updates-heading">Latest Updates</h2>
+                    <p>Announcements and reminders curated by the committee to keep everyone informed.</p>
+                </header>
+                <div class="updates" data-updates></div>
+            </div>
+        </section>
+
+        <section id="contact" class="section">
+            <div class="container contact">
+                <div class="contact__content">
+                    <h2>Visit &amp; Connect</h2>
+                    <p>We welcome visitors, volunteers, and questions. Reach out anytime or stop by during prayer hours.</p>
+                    <div class="contact__details">
+                        <div>
+                            <h3>Location</h3>
+                            <p>Masjid Noor Bathar, Main Street Bathar, District Gujrat, Punjab, Pakistan.</p>
+                        </div>
+                        <div>
+                            <h3>Contact</h3>
+                            <p><a href="tel:+923001234567">+92 300 123 4567</a><br><a href="mailto:info@masjidnoor.org">info@masjidnoor.org</a></p>
+                        </div>
+                        <div>
+                            <h3>Office Hours</h3>
+                            <p>Monday to Saturday, 9 AM – 5 PM</p>
+                        </div>
+                    </div>
+                </div>
+                <form class="contact__form" data-contact-form>
+                    <h3>Send a Message</h3>
+                    <label for="name">Name</label>
+                    <input id="name" name="name" type="text" placeholder="Your name" required>
+
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email" placeholder="you@example.com" required>
+
+                    <label for="topic">Topic</label>
+                    <select id="topic" name="topic" required>
+                        <option value="">Select a topic</option>
+                        <option value="volunteer">Volunteer</option>
+                        <option value="donation">Donation</option>
+                        <option value="program">Program Inquiry</option>
+                        <option value="general">General</option>
+                    </select>
+
+                    <label for="message">Message</label>
+                    <textarea id="message" name="message" rows="4" placeholder="How can we help?" required></textarea>
+
+                    <button type="submit" class="btn btn--primary">Submit</button>
+                    <p class="form-status" aria-live="polite"></p>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container site-footer__content">
+            <p>&copy; <span data-current-year></span> Masjid Noor Bathar Committee. All rights reserved.</p>
+            <nav class="footer-nav" aria-label="Footer navigation">
+                <a href="#home">Home</a>
+                <a href="#prayers">Prayers</a>
+                <a href="#programs">Programs</a>
+                <a href="#donations">Donations</a>
+                <a href="#contact">Contact</a>
+            </nav>
+        </div>
+    </footer>
+
+    <script src="assets/js/main.js" defer></script>
+</body>
+</html>
