@@ -271,6 +271,12 @@ body {
     }
 }
 
+@media (max-width: 480px) {
+    .hero__container {
+        padding-top: 0.6rem;
+    }
+}
+
 @media (min-width: 1200px) {
     .view-panels {
         width: min(62rem, 80vw);
