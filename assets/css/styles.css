@@ -34,7 +34,7 @@ body {
 }
 
 .hero {
-    padding: 0.75rem 0 1rem;
+    padding: 0.35rem 0 1rem;
 }
 
 .hero__container {
@@ -44,7 +44,7 @@ body {
     align-items: center;
     justify-content: flex-start;
     text-align: center;
-    padding-top: 0.5rem;
+    padding-top: 0;
 }
 
 .hero__heading {
