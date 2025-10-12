@@ -291,3 +291,105 @@ body {
         transform: none;
     }
 }
+
+.auth-modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+}
+
+.auth-modal--visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.auth-modal__backdrop {
+    position: absolute;
+    inset: 0;
+}
+
+.auth-modal__dialog {
+    position: relative;
+    width: min(24rem, 92vw);
+    background-color: #ffffff;
+    border-radius: 1rem;
+    padding: 1.75rem;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.24);
+    display: grid;
+    gap: 0.85rem;
+}
+
+.auth-modal__description {
+    margin: 0 0 0.5rem;
+    color: rgba(28, 28, 28, 0.72);
+    font-size: 0.95rem;
+}
+
+.auth-modal__dialog label {
+    font-weight: 600;
+    color: var(--brand-charcoal);
+}
+
+.auth-modal__dialog input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    font: inherit;
+    background-color: rgba(245, 245, 245, 0.9);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.auth-modal__dialog input:focus {
+    outline: none;
+    border-color: var(--brand-deep-green);
+    box-shadow: 0 0 0 3px rgba(163, 207, 161, 0.35);
+}
+
+.auth-modal__error {
+    min-height: 1.2rem;
+    margin: 0;
+    color: #b00020;
+    font-size: 0.85rem;
+}
+
+.auth-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    margin-top: 0.35rem;
+}
+
+.auth-modal__btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.4rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.auth-modal__btn--primary {
+    background: linear-gradient(135deg, rgba(0, 100, 0, 0.92), rgba(192, 170, 131, 0.92));
+    color: var(--brand-soft-white);
+}
+
+.auth-modal__btn--secondary {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: var(--brand-charcoal);
+}
+
+.auth-modal__btn:focus-visible,
+.auth-modal__btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+}

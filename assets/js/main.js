@@ -23,6 +23,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const reasonInput = document.getElementById("amount-reason");
     const gasWrapper = document.querySelector("[data-gas-wrapper]");
     const gasAmountInput = document.getElementById("gas-amount");
+    const authModal = document.querySelector("[data-auth-modal]");
+    const authForm = document.querySelector("[data-auth-form]");
+    const authError = document.querySelector("[data-auth-error]");
+    const authCancelButton = document.querySelector("[data-auth-cancel]");
+    const authBackdrop = document.querySelector("[data-auth-backdrop]");
+    const authUsernameInput = document.getElementById("auth-username");
+    const authPasswordInput = document.getElementById("auth-password");
+
+    const storageKey = "masjidnoorFormAccess";
+    let hasFormAccess = false;
+    let previousFocus = null;
+
+    try {
+        hasFormAccess = window.localStorage.getItem(storageKey) === "true";
+    } catch (error) {
+        hasFormAccess = false;
+    }
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -78,31 +95,91 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 5200);
     }
 
-    if (viewButtons.length) {
-        const activateView = (targetId) => {
-            const targetPanel = document.getElementById(`view-${targetId}`);
-            if (!targetPanel) {
-                return;
+    const activateView = (targetId) => {
+        if (!viewButtons.length) {
+            return;
+        }
+        const targetPanel = document.getElementById(`view-${targetId}`);
+        if (!targetPanel) {
+            return;
+        }
+
+        viewButtons.forEach((button) => {
+            const isActive = button.getAttribute("data-view") === targetId;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-selected", String(isActive));
+            button.setAttribute("tabindex", isActive ? "0" : "-1");
+        });
+
+        viewPanels.forEach((panel) => {
+            const isActive = panel === targetPanel;
+            panel.classList.toggle("is-active", isActive);
+            panel.toggleAttribute("hidden", !isActive);
+            panel.setAttribute("aria-hidden", String(!isActive));
+        });
+    };
+
+    const markAccessGranted = () => {
+        hasFormAccess = true;
+        try {
+            window.localStorage.setItem(storageKey, "true");
+        } catch (error) {
+            // Ignore storage failures to keep form accessible within the current session.
+        }
+    };
+
+    const showAuthModal = () => {
+        if (!authModal) {
+            return;
+        }
+
+        if (!authModal.classList.contains("auth-modal--visible")) {
+            if (authForm) {
+                authForm.reset();
             }
+            if (authError) {
+                authError.textContent = "";
+            }
+            previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            authModal.classList.add("auth-modal--visible");
+            authModal.removeAttribute("hidden");
+            window.setTimeout(() => {
+                if (authUsernameInput) {
+                    authUsernameInput.focus();
+                }
+            }, 0);
+        }
+    };
 
-            viewButtons.forEach((button) => {
-                const isActive = button.getAttribute("data-view") === targetId;
-                button.classList.toggle("is-active", isActive);
-                button.setAttribute("aria-selected", String(isActive));
-                button.setAttribute("tabindex", isActive ? "0" : "-1");
-            });
+    const hideAuthModal = () => {
+        if (!authModal) {
+            return;
+        }
 
-            viewPanels.forEach((panel) => {
-                const isActive = panel === targetPanel;
-                panel.classList.toggle("is-active", isActive);
-                panel.toggleAttribute("hidden", !isActive);
-                panel.setAttribute("aria-hidden", String(!isActive));
-            });
-        };
+        authModal.classList.remove("auth-modal--visible");
+        authModal.setAttribute("hidden", "");
+        if (authForm) {
+            authForm.reset();
+        }
+        if (authError) {
+            authError.textContent = "";
+        }
+        if (previousFocus && typeof previousFocus.focus === "function") {
+            previousFocus.focus();
+        }
+        previousFocus = null;
+    };
 
+    if (viewButtons.length) {
         viewButtons.forEach((btn) => {
-            btn.addEventListener("click", () => {
-                activateView(btn.getAttribute("data-view"));
+            btn.addEventListener("click", (event) => {
+                const targetView = btn.getAttribute("data-view");
+                if (targetView === "form" && !hasFormAccess) {
+                    event.preventDefault();
+                    showAuthModal();
+                    return;
+                }
+                activateView(targetView);
             });
         });
 
@@ -111,6 +188,50 @@ document.addEventListener("DOMContentLoaded", () => {
         if (initialButton) {
             activateView(initialButton.getAttribute("data-view"));
         }
+    }
+
+    if (authCancelButton) {
+        authCancelButton.addEventListener("click", () => {
+            hideAuthModal();
+        });
+    }
+
+    if (authBackdrop) {
+        authBackdrop.addEventListener("click", () => {
+            hideAuthModal();
+        });
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && authModal && authModal.classList.contains("auth-modal--visible")) {
+            hideAuthModal();
+        }
+    });
+
+    if (authForm && authUsernameInput && authPasswordInput) {
+        authForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const username = authUsernameInput.value.trim();
+            const password = authPasswordInput.value;
+
+            if (username === "admin" && password === "tazor43214321") {
+                markAccessGranted();
+                hideAuthModal();
+                activateView("form");
+                if (entryForm) {
+                    const firstField = entryForm.querySelector("input, select, textarea");
+                    if (firstField instanceof HTMLElement) {
+                        window.setTimeout(() => firstField.focus(), 0);
+                    }
+                }
+            } else {
+                if (authError) {
+                    authError.textContent = "Incorrect username or password.";
+                }
+                authPasswordInput.focus();
+                authPasswordInput.select();
+            }
+        });
     }
 
     const updateConditionalFields = () => {

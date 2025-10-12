@@ -141,6 +141,25 @@
         </section>
     </main>
 
+    <div class="auth-modal" data-auth-modal hidden>
+        <div class="auth-modal__backdrop" data-auth-backdrop></div>
+        <div class="auth-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+            <h2 id="auth-modal-title">Admin Access</h2>
+            <p class="auth-modal__description">Enter the admin credentials to view the form.</p>
+            <form data-auth-form>
+                <label for="auth-username">Username</label>
+                <input type="text" id="auth-username" name="username" autocomplete="username" required>
+                <label for="auth-password">Password</label>
+                <input type="password" id="auth-password" name="password" autocomplete="current-password" required>
+                <p class="auth-modal__error" data-auth-error aria-live="polite"></p>
+                <div class="auth-modal__actions">
+                    <button type="button" class="auth-modal__btn auth-modal__btn--secondary" data-auth-cancel>Cancel</button>
+                    <button type="submit" class="auth-modal__btn auth-modal__btn--primary">Continue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="assets/js/main.js" defer></script>
 </body>
 </html>
