@@ -25,7 +25,11 @@ body {
     min-height: 100vh;
     font-family: var(--font-primary);
     color: var(--brand-charcoal);
-    background-color: var(--brand-soft-white);
+    background: linear-gradient(150deg, rgba(0, 100, 0, 0.16), rgba(163, 207, 161, 0.2)) no-repeat,
+        radial-gradient(circle at top right, rgba(192, 170, 131, 0.28), transparent 55%),
+        radial-gradient(circle at bottom left, rgba(0, 100, 0, 0.22), transparent 60%),
+        var(--brand-soft-white);
+    background-attachment: fixed;
 }
 
 .container {
