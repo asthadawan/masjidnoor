@@ -90,7 +90,7 @@ body {
 }
 
 .view-panels {
-    width: min(32rem, 92vw);
+    width: min(36rem, 92vw);
     margin: 1.75rem auto 0;
 }
 
@@ -260,6 +260,16 @@ body {
     .hero__container {
         min-height: calc(100vh - var(--spacing-xl));
         padding-top: 1.25rem;
+    }
+
+    .view-panels {
+        width: min(48rem, 86vw);
+    }
+}
+
+@media (min-width: 1200px) {
+    .view-panels {
+        width: min(62rem, 80vw);
     }
 }
 

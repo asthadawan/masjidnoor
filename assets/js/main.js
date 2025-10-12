@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const extraAmountValueInput = document.getElementById("extra-amount-value");
     const reasonField = document.querySelector("[data-reason-field]");
     const reasonInput = document.getElementById("amount-reason");
+    const gasWrapper = document.querySelector("[data-gas-wrapper]");
+    const gasAmountInput = document.getElementById("gas-amount");
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -121,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const extraAmountValue = extraAmountInput ? extraAmountInput.value : "no";
         const extraNeedsReason = extraAmountValue === "yes";
+    const gasValue = document.getElementById("gas-refill") ? document.getElementById("gas-refill").value : "no";
 
         if (reasonField && reasonInput) {
             const showReason = salaryNeedsReason || extraNeedsReason;
@@ -134,6 +137,15 @@ document.addEventListener("DOMContentLoaded", () => {
             extraAmountValueInput.required = showExtraField;
             if (!showExtraField) {
                 extraAmountValueInput.value = "";
+            }
+        }
+
+        if (gasWrapper && gasAmountInput) {
+            const showGasField = gasValue === "yes";
+            gasWrapper.classList.toggle("is-hidden", !showGasField);
+            gasAmountInput.required = showGasField;
+            if (!showGasField) {
+                gasAmountInput.value = "";
             }
         }
     };
@@ -160,6 +172,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 hiddenInput.value = selectedValue;
 
                 if (hiddenInput === extraAmountInput) {
+                    updateConditionalFields();
+                }
+
+                if (hiddenInput && hiddenInput.id === "gas-refill") {
                     updateConditionalFields();
                 }
             };

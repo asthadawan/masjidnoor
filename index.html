@@ -58,9 +58,7 @@
                                 <select id="payment-mode" name="payment-mode" required>
                                     <option value="">Select mode</option>
                                     <option value="cash">Cash</option>
-                                    <option value="bank-transfer">Bank Transfer</option>
-                                    <option value="mobile-wallet">Mobile Wallet</option>
-                                    <option value="cheque">Cheque</option>
+                                    <option value="online">Online</option>
                                 </select>
                             </div>
                             <div class="form-field">
@@ -82,6 +80,10 @@
                                     <button type="button" class="binary-toggle__option" role="radio" aria-checked="false" data-value="yes">Yes</button>
                                 </div>
                                 <input type="hidden" id="gas-refill" name="gas-refill" value="no">
+                            </div>
+                            <div class="form-field is-hidden" data-gas-wrapper>
+                                <label for="gas-amount">Gas Refill Amount (INR)</label>
+                                <input type="number" id="gas-amount" name="gas-amount" min="0" step="50" placeholder="0">
                             </div>
                             <div class="form-field is-hidden" data-reason-field>
                                 <label for="amount-reason">Reason for amount variance / extra allocation</label>
