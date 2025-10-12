@@ -29,7 +29,7 @@ body {
         radial-gradient(circle at top right, rgba(192, 170, 131, 0.28), transparent 55%),
         radial-gradient(circle at bottom left, rgba(0, 100, 0, 0.22), transparent 60%),
         var(--brand-soft-white);
-    background-attachment: fixed;
+    background-size: cover;
 }
 
 .container {
