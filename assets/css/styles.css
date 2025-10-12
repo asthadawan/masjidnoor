@@ -77,6 +77,176 @@ body {
     color: rgba(28, 28, 28, 0.78);
 }
 
+.dashboard-overview {
+    margin: 1.5rem 0 1.75rem;
+    padding: 1.5rem 1.35rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+    display: grid;
+    gap: 1.5rem;
+}
+
+.dashboard-overview__title {
+    margin: 0;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--brand-charcoal);
+}
+
+.dashboard-overview__metrics {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.overview-metric {
+    padding: 1rem 1.1rem;
+    border-radius: 0.85rem;
+    background: linear-gradient(135deg, rgba(0, 100, 0, 0.08), rgba(163, 207, 161, 0.15));
+    border: 1px solid rgba(0, 100, 0, 0.08);
+    display: grid;
+    gap: 0.4rem;
+}
+
+.overview-metric__label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(28, 28, 28, 0.72);
+}
+
+.overview-metric__value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--brand-charcoal);
+}
+
+.dashboard-overview__insights {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    align-items: stretch;
+}
+
+.overview-progress {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(0, 100, 0, 0.1);
+    background: rgba(240, 255, 240, 0.75);
+}
+
+.overview-progress__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.overview-progress__title {
+    font-weight: 600;
+    color: var(--brand-charcoal);
+}
+
+.overview-progress__value {
+    font-weight: 600;
+    color: rgba(28, 28, 28, 0.75);
+}
+
+.overview-progress__bar {
+    position: relative;
+    width: 100%;
+    height: 0.65rem;
+    border-radius: 999px;
+    background: rgba(0, 100, 0, 0.12);
+    overflow: hidden;
+}
+
+.overview-progress__fill {
+    position: absolute;
+    inset: 0;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(0, 100, 0, 0.9), rgba(163, 207, 161, 0.9));
+    transition: width 260ms ease;
+}
+
+.overview-chart {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.overview-chart__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.overview-chart__title {
+    font-weight: 600;
+    color: var(--brand-charcoal);
+}
+
+.overview-chart__canvas {
+    width: 180px;
+    height: 180px;
+    justify-self: center;
+}
+
+.overview-chart__empty {
+    margin: 0;
+    text-align: center;
+    font-size: 0.9rem;
+    color: rgba(28, 28, 28, 0.7);
+}
+
+.overview-chart__legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.overview-chart__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.overview-chart__swatch {
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 999px;
+    background-color: var(--swatch-color, rgba(0, 0, 0, 0.25));
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.overview-chart__legend-text {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    color: rgba(28, 28, 28, 0.75);
+}
+
+.overview-chart__legend-label {
+    font-weight: 600;
+    color: var(--brand-charcoal);
+}
+
+.overview-chart__legend-value {
+    font-size: 0.8rem;
+    color: rgba(28, 28, 28, 0.65);
+}
+
 .view-toggle__btn {
     appearance: none;
     border: none;
@@ -457,6 +627,20 @@ body {
         font-size: 0.95rem;
         line-height: 1.35;
         padding: 0 0.75rem;
+    }
+
+    .dashboard-overview {
+        padding: 1.25rem 1.1rem;
+        gap: 1.25rem;
+    }
+
+    .dashboard-overview__metrics {
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    }
+
+    .overview-chart__canvas {
+        width: 150px;
+        height: 150px;
     }
 }
 

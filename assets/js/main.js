@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const reasonInput = document.getElementById("amount-reason");
     const gasWrapper = document.querySelector("[data-gas-wrapper]");
     const gasAmountInput = document.getElementById("gas-amount");
+    const householdSelect = document.getElementById("household-name");
     const authModal = document.querySelector("[data-auth-modal]");
     const authForm = document.querySelector("[data-auth-form]");
     const authError = document.querySelector("[data-auth-error]");
@@ -74,6 +75,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const entryLoadingIndicator = document.querySelector("[data-entry-loading]");
     const entryStatus = document.querySelector("[data-entry-status]");
     const dashboardSubheading = document.querySelector("[data-dashboard-subheading]");
+    const overviewTotalHouseholds = document.querySelector("[data-overview-total-households]");
+    const overviewPaidHouseholds = document.querySelector("[data-overview-paid-households]");
+    const overviewPendingHouseholds = document.querySelector("[data-overview-pending-households]");
+    const overviewTotalSalary = document.querySelector("[data-overview-total-salary]");
+    const overviewTotalAmount = document.querySelector("[data-overview-total-amount]");
+    const overviewProgressBar = document.querySelector("[data-overview-progress-bar]");
+    const overviewProgressFill = document.querySelector("[data-overview-progress-fill]");
+    const overviewProgressLabel = document.querySelector("[data-overview-progress-label]");
+    const overviewPaymentCanvas = document.querySelector("[data-overview-payment-chart]");
+    const overviewPaymentLegend = document.querySelector("[data-overview-payment-legend]");
+    const overviewPaymentEmpty = document.querySelector("[data-overview-payment-empty]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
     const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
     const filterMonthSelect = document.querySelector("[data-filter-month]");
@@ -92,6 +104,42 @@ document.addEventListener("DOMContentLoaded", () => {
         "November",
         "December"
     ];
+
+    const getCssVariableValue = (name, fallback = "") => {
+        try {
+            const value = getComputedStyle(document.documentElement).getPropertyValue(name);
+            return value ? value.trim() : fallback;
+        } catch (error) {
+            return fallback;
+        }
+    };
+
+    const paymentModeMeta = [
+        { key: "online", label: "Online", color: getCssVariableValue("--brand-deep-green", "#2b8a3e") },
+        { key: "cash", label: "Cash", color: getCssVariableValue("--brand-sand", "#c0aa83") },
+        { key: "none", label: "[None]", color: "#6c757d" }
+    ];
+
+    const uniqueHouseholdsList = (() => {
+        if (!householdSelect) {
+            return [];
+        }
+
+        const map = new Map();
+        Array.from(householdSelect.options).forEach((option) => {
+            const value = option.value ? option.value.toString().trim() : "";
+            if (!value) {
+                return;
+            }
+            const key = value.toLowerCase();
+            if (!map.has(key)) {
+                map.set(key, value);
+            }
+        });
+        return Array.from(map.values());
+    })();
+
+    const totalHouseholdCount = uniqueHouseholdsList.length;
 
     const getPreviousMonthDetails = (baseDate = new Date()) => {
         const referenceDate = new Date(baseDate);
@@ -275,6 +323,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }).format(numericValue);
     };
 
+    const formatCurrencyInr = (value) => {
+        const formatted = formatInr(value);
+        return formatted ? `₹ ${formatted}` : "₹ 0";
+    };
+
     const formatMonthWithYear = (month, timestamp, fallbackDate) => {
         if (!month) {
             return "—";
@@ -354,6 +407,228 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const numericValue = Number(value);
         return Number.isFinite(numericValue) ? numericValue : null;
+    };
+
+    const prepareCanvasForDrawing = (canvas, context) => {
+        if (!canvas || !context) {
+            return { width: 0, height: 0 };
+        }
+
+        const ratio = window.devicePixelRatio || 1;
+        const width = canvas.clientWidth || canvas.width;
+        const height = canvas.clientHeight || canvas.height;
+
+        if (!width || !height) {
+            return { width: 0, height: 0 };
+        }
+
+        const displayWidth = Math.round(width * ratio);
+        const displayHeight = Math.round(height * ratio);
+
+        if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+        }
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.scale(ratio, ratio);
+
+        return { width, height };
+    };
+
+    const updatePaymentLegend = (counts, total) => {
+        if (!overviewPaymentLegend) {
+            return;
+        }
+
+        overviewPaymentLegend.innerHTML = "";
+
+        paymentModeMeta.forEach((mode) => {
+            const count = counts[mode.key] || 0;
+            const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+
+            const item = document.createElement("li");
+            item.className = "overview-chart__legend-item";
+
+            const swatch = document.createElement("span");
+            swatch.className = "overview-chart__swatch";
+            swatch.style.setProperty("--swatch-color", mode.color);
+
+            const textWrapper = document.createElement("div");
+            textWrapper.className = "overview-chart__legend-text";
+
+            const label = document.createElement("span");
+            label.className = "overview-chart__legend-label";
+            label.textContent = mode.label;
+
+            const value = document.createElement("span");
+            value.className = "overview-chart__legend-value";
+            value.textContent = `${count} (${percent}%)`;
+
+            textWrapper.append(label, value);
+            item.append(swatch, textWrapper);
+            overviewPaymentLegend.appendChild(item);
+        });
+    };
+
+    const drawPaymentModeChart = (counts, total) => {
+        if (!overviewPaymentCanvas) {
+            return;
+        }
+
+        const context = overviewPaymentCanvas.getContext("2d");
+        if (!context) {
+            return;
+        }
+
+        if (!total || total <= 0) {
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, overviewPaymentCanvas.width, overviewPaymentCanvas.height);
+            return;
+        }
+
+        const { width, height } = prepareCanvasForDrawing(overviewPaymentCanvas, context);
+        if (!width || !height) {
+            return;
+        }
+
+        const radius = Math.min(width, height) / 2 - 6;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        let startAngle = -Math.PI / 2;
+
+        paymentModeMeta.forEach((mode) => {
+            const value = counts[mode.key] || 0;
+            if (value <= 0) {
+                return;
+            }
+
+            const sliceAngle = (value / total) * Math.PI * 2;
+            context.beginPath();
+            context.moveTo(centerX, centerY);
+            context.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+            context.closePath();
+            context.fillStyle = mode.color;
+            context.fill();
+            startAngle += sliceAngle;
+        });
+
+        context.beginPath();
+        context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        context.strokeStyle = "rgba(255, 255, 255, 0.85)";
+        context.lineWidth = 1.5;
+        context.stroke();
+    };
+
+    const updateOverviewMetrics = (documents) => {
+        const paidHouseholdSet = new Set();
+        const encounteredHouseholds = new Set();
+        let totalSalary = 0;
+        let totalExtra = 0;
+        const paymentCounts = {
+            online: 0,
+            cash: 0,
+            none: 0
+        };
+
+        if (Array.isArray(documents)) {
+            documents.forEach((docSnapshot) => {
+                const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
+                if (!data) {
+                    return;
+                }
+
+                const householdNameRaw = (data.householdName || data["household-name"] || "").toString().trim();
+                const householdKey = householdNameRaw.toLowerCase();
+                const salaryAmount = toNumberOrNull(data.salaryAmount);
+                const hasPaid = salaryAmount !== null && salaryAmount > 0;
+                const extraAmountValue = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) : null;
+                const normalizedMode = (data.paymentMode || "").toString().trim().toLowerCase() || "none";
+
+                if (householdKey) {
+                    encounteredHouseholds.add(householdKey);
+                }
+
+                if (hasPaid && householdKey) {
+                    paidHouseholdSet.add(householdKey);
+                }
+
+                if (salaryAmount !== null) {
+                    totalSalary += salaryAmount;
+                }
+
+                if (extraAmountValue !== null) {
+                    totalExtra += extraAmountValue;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(paymentCounts, normalizedMode)) {
+                    paymentCounts[normalizedMode] += 1;
+                } else {
+                    paymentCounts.none += 1;
+                }
+            });
+        }
+
+        const datasetHouseholdCount = encounteredHouseholds.size;
+        const usingSpecificHouseholdFilter = Boolean(filterHouseholdSelect && filterHouseholdSelect.value);
+        let totalHouseholds = Math.max(totalHouseholdCount, datasetHouseholdCount);
+
+        if (usingSpecificHouseholdFilter) {
+            totalHouseholds = 1;
+        }
+
+    const paidHouseholds = Math.min(paidHouseholdSet.size, totalHouseholds);
+        const pendingHouseholds = Math.max(totalHouseholds - paidHouseholds, 0);
+        const totalCollected = totalSalary + totalExtra;
+        const progressPercent = totalHouseholds > 0 ? Math.round((paidHouseholds / totalHouseholds) * 100) : 0;
+        const clampedProgress = Math.min(Math.max(progressPercent, 0), 100);
+        const totalPaymentEntries = paymentModeMeta.reduce((acc, mode) => acc + (paymentCounts[mode.key] || 0), 0);
+
+        if (overviewTotalHouseholds) {
+            overviewTotalHouseholds.textContent = totalHouseholds;
+        }
+
+        if (overviewPaidHouseholds) {
+            overviewPaidHouseholds.textContent = paidHouseholds;
+        }
+
+        if (overviewPendingHouseholds) {
+            overviewPendingHouseholds.textContent = pendingHouseholds;
+        }
+
+        if (overviewTotalSalary) {
+            overviewTotalSalary.textContent = formatCurrencyInr(totalSalary);
+        }
+
+        if (overviewTotalAmount) {
+            overviewTotalAmount.textContent = formatCurrencyInr(totalCollected);
+        }
+
+        if (overviewProgressLabel) {
+            overviewProgressLabel.textContent = `${clampedProgress}% • ${paidHouseholds}/${totalHouseholds || 0}`;
+        }
+
+        if (overviewProgressFill) {
+            overviewProgressFill.style.width = `${clampedProgress}%`;
+        }
+
+        if (overviewProgressBar) {
+            overviewProgressBar.setAttribute("aria-valuenow", String(clampedProgress));
+        }
+
+        const hasPaymentData = totalPaymentEntries > 0;
+
+        if (overviewPaymentCanvas) {
+            overviewPaymentCanvas.toggleAttribute("hidden", !hasPaymentData);
+        }
+
+        if (overviewPaymentEmpty) {
+            overviewPaymentEmpty.toggleAttribute("hidden", hasPaymentData);
+        }
+
+        drawPaymentModeChart(paymentCounts, totalPaymentEntries);
+        updatePaymentLegend(paymentCounts, totalPaymentEntries);
     };
 
     const setDefaultMonthFilter = () => {
@@ -548,6 +823,7 @@ document.addEventListener("DOMContentLoaded", () => {
         entryTableBody.innerHTML = "";
 
         if (!documents.length) {
+            updateOverviewMetrics([]);
             entryTableWrapper.setAttribute("hidden", "");
             if (defaultEmptyStateMessage) {
                 entryEmptyState.textContent = defaultEmptyStateMessage;
@@ -566,6 +842,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 : true;
             return monthMatch && householdMatch;
         });
+
+        updateOverviewMetrics(filteredDocs);
 
         if (!filteredDocs.length) {
             entryTableWrapper.setAttribute("hidden", "");
@@ -852,6 +1130,7 @@ document.addEventListener("DOMContentLoaded", () => {
     restoreSessionFromStorage();
     setDefaultMonthFilter();
     updateDashboardSubheading();
+    updateOverviewMetrics([]);
 
     if (filterMonthSelect) {
         filterMonthSelect.addEventListener("change", () => {

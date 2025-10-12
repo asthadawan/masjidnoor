@@ -25,6 +25,50 @@
                 <div class="view-panels">
                     <section class="view-panel is-active" id="view-dashboard" role="tabpanel" aria-labelledby="view-dashboard-tab">
                         <div class="panel-card dashboard-card" data-entry-dashboard>
+                            <section class="dashboard-overview" data-dashboard-overview aria-labelledby="dashboard-overview-title">
+                                <h3 class="dashboard-overview__title" id="dashboard-overview-title">Dashboard Overview</h3>
+                                <div class="dashboard-overview__metrics">
+                                    <article class="overview-metric">
+                                        <span class="overview-metric__label">Total Households</span>
+                                        <span class="overview-metric__value" data-overview-total-households>0</span>
+                                    </article>
+                                    <article class="overview-metric">
+                                        <span class="overview-metric__label">Paid Households (Salary)</span>
+                                        <span class="overview-metric__value" data-overview-paid-households>0</span>
+                                    </article>
+                                    <article class="overview-metric">
+                                        <span class="overview-metric__label">Pending Households (Salary)</span>
+                                        <span class="overview-metric__value" data-overview-pending-households>0</span>
+                                    </article>
+                                    <article class="overview-metric">
+                                        <span class="overview-metric__label">Total Salary Collected</span>
+                                        <span class="overview-metric__value" data-overview-total-salary>₹ 0</span>
+                                    </article>
+                                    <article class="overview-metric">
+                                        <span class="overview-metric__label">Total Amount Collected</span>
+                                        <span class="overview-metric__value" data-overview-total-amount>₹ 0</span>
+                                    </article>
+                                </div>
+                                <div class="dashboard-overview__insights">
+                                    <div class="overview-progress">
+                                        <div class="overview-progress__header">
+                                            <span class="overview-progress__title">Salary Payment Progress</span>
+                                            <span class="overview-progress__value" data-overview-progress-label>0% • 0/0</span>
+                                        </div>
+                                        <div class="overview-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-overview-progress-bar>
+                                            <div class="overview-progress__fill" data-overview-progress-fill></div>
+                                        </div>
+                                    </div>
+                                    <div class="overview-chart">
+                                        <header class="overview-chart__header">
+                                            <span class="overview-chart__title">Payment Mode Breakdown</span>
+                                        </header>
+                                        <canvas class="overview-chart__canvas" data-overview-payment-chart width="220" height="220" role="img" aria-label="Payment mode distribution"></canvas>
+                                        <p class="overview-chart__empty" data-overview-payment-empty hidden>No payment data yet.</p>
+                                        <ul class="overview-chart__legend" data-overview-payment-legend></ul>
+                                    </div>
+                                </div>
+                            </section>
                             <div class="dashboard-card__header">
                                 <h2 class="dashboard-card__heading">Data Display &amp; Actions</h2>
                                 <span class="dashboard-card__status" data-entry-loading hidden>Loading entries…</span>
