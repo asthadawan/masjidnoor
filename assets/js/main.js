@@ -67,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const authPasswordInput = document.getElementById("auth-password");
     const sessionTimerBanner = document.querySelector("[data-session-timer]");
     const sessionCountdownText = document.querySelector("[data-session-countdown]");
+    const entryTableHeadRow = document.querySelector("[data-entry-table-head-row]");
     const entryTableWrapper = document.querySelector("[data-entry-table-wrapper]");
     const entryTableBody = document.querySelector("[data-entry-table-body]");
     const entryEmptyState = document.querySelector("[data-entry-empty]");
@@ -233,22 +234,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formatInr = (value) => {
         if (value === undefined || value === null || value === "") {
-            return "—";
+            return "";
         }
 
         const numericValue = Number(value);
         if (!Number.isFinite(numericValue)) {
-            return "—";
+            return "";
         }
 
         return new Intl.NumberFormat("en-IN", {
-            style: "currency",
-            currency: "INR",
             maximumFractionDigits: 0
         }).format(numericValue);
     };
-
-    const formatYesNo = (flag) => (flag ? "Yes" : "No");
 
     const formatMonthWithYear = (month, timestamp, fallbackDate) => {
         if (!month) {
@@ -307,28 +304,28 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    const formatTimestamp = (timestamp) => {
-        if (!timestamp) {
-            return "Pending";
+    const formatTitleCase = (value) => {
+        if (!value) {
+            return "";
         }
 
-        try {
-            const dateInstance = typeof timestamp.toDate === "function" ? timestamp.toDate() : null;
-            const date = dateInstance instanceof Date ? dateInstance : new Date(timestamp);
-            if (Number.isNaN(date.getTime())) {
-                return "Pending";
-            }
+        return value
+            .toString()
+            .toLowerCase()
+            .split(/\s+/)
+            .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : ""))
+            .join(" ");
+    };
 
-            return date.toLocaleString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit"
-            });
-        } catch (error) {
-            return "Pending";
+    const toBoolean = (value) => value === true || value === "yes" || value === "true";
+
+    const toNumberOrNull = (value) => {
+        if (value === undefined || value === null || value === "") {
+            return null;
         }
+
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : null;
     };
 
     const setDefaultMonthFilter = () => {
@@ -342,41 +339,106 @@ document.addEventListener("DOMContentLoaded", () => {
         filterMonthSelect.value = targetValue;
     };
 
-    const updateHouseholdFilterOptions = (documents) => {
-        if (!filterHouseholdSelect) {
-            return;
-        }
-
-        const previouslySelected = filterHouseholdSelect.value;
-        const names = new Set();
-
-        documents.forEach((docSnapshot) => {
-            const data = docSnapshot.data();
-            const name = (data.householdName || data["household-name"] || "").toString();
-            if (name.trim()) {
-                names.add(name.trim());
+    const columnsDefinition = [
+        {
+            id: "serial",
+            label: "#",
+            always: true,
+            wrap: false,
+            getValue: (_data, context) => String(context.index + 1)
+        },
+        {
+            id: "month",
+            label: "Month",
+            always: true,
+            wrap: false,
+            getValue: (data) => formatMonthWithYear(data.month, data.createdAt, data.paymentDate)
+        },
+        {
+            id: "household",
+            label: "Household",
+            always: true,
+            wrap: true,
+            getValue: (data) => data.householdName || data["household-name"] || "—"
+        },
+        {
+            id: "salaryAmount",
+            label: "Salary Amount",
+            wrap: false,
+            hasValue: (data) => toNumberOrNull(data.salaryAmount) !== null,
+            getValue: (data) => {
+                const amount = toNumberOrNull(data.salaryAmount);
+                return amount !== null ? formatInr(amount) : "";
             }
-        });
-
-        const sortedNames = Array.from(names).sort((a, b) => a.localeCompare(b));
-
-        filterHouseholdSelect.innerHTML = "";
-        const defaultOption = document.createElement("option");
-        defaultOption.value = "";
-        defaultOption.textContent = "All households";
-        filterHouseholdSelect.appendChild(defaultOption);
-
-        sortedNames.forEach((name) => {
-            const option = document.createElement("option");
-            option.value = name;
-            option.textContent = name;
-            filterHouseholdSelect.appendChild(option);
-        });
-
-        if (previouslySelected && sortedNames.includes(previouslySelected)) {
-            filterHouseholdSelect.value = previouslySelected;
+        },
+        {
+            id: "paymentMode",
+            label: "Payment Mode",
+            wrap: false,
+            hasValue: (data) => !!(data.paymentMode && data.paymentMode.toString().trim()),
+            getValue: (data) => formatTitleCase(data.paymentMode)
+        },
+        {
+            id: "paymentDate",
+            label: "Payment Date",
+            wrap: false,
+            hasValue: (data) => !!data.paymentDate,
+            getValue: (data) => formatIsoDate(data.paymentDate)
+        },
+        {
+            id: "extraAmount",
+            label: "Extra Amount",
+            wrap: false,
+            hasValue: (data) => toBoolean(data.extraAmount),
+            getValue: () => "Yes"
+        },
+        {
+            id: "extraAmountValue",
+            label: "Extra Value",
+            wrap: false,
+            hasValue: (data) => toBoolean(data.extraAmount) && toNumberOrNull(data.extraAmountValue) !== null,
+            getValue: (data) => {
+                const amount = toNumberOrNull(data.extraAmountValue);
+                return amount !== null ? formatInr(amount) : "";
+            }
+        },
+        {
+            id: "riceCollected",
+            label: "Rice Collected",
+            wrap: false,
+            hasValue: (data) => toBoolean(data.riceCollected),
+            getValue: () => "Yes"
+        },
+        {
+            id: "gasRefill",
+            label: "Gas Refill",
+            wrap: false,
+            hasValue: (data) => toBoolean(data.gasRefill),
+            getValue: () => "Yes"
+        },
+        {
+            id: "gasAmount",
+            label: "Gas Amount",
+            wrap: false,
+            hasValue: (data) => toBoolean(data.gasRefill) && toNumberOrNull(data.gasAmount) !== null,
+            getValue: (data) => {
+                const amount = toNumberOrNull(data.gasAmount);
+                return amount !== null ? formatInr(amount) : "";
+            }
+        },
+        {
+            id: "amountReason",
+            label: "Reason",
+            wrap: true,
+            hasValue: (data) => {
+                if (!(toBoolean(data.extraAmount) || toBoolean(data.gasRefill))) {
+                    return false;
+                }
+                return !!(data.amountReason && data.amountReason.toString().trim());
+            },
+            getValue: (data) => (data.amountReason ? data.amountReason.toString().trim() : "")
         }
-    };
+    ];
 
     const setEntryLoadingState = (isLoading, message = "") => {
         if (!entryLoadingIndicator) {
@@ -425,6 +487,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (entryTableHeadRow) {
+            entryTableHeadRow.innerHTML = "";
+        }
         entryTableBody.innerHTML = "";
 
         if (!documents.length) {
@@ -435,8 +500,6 @@ document.addEventListener("DOMContentLoaded", () => {
             entryEmptyState.removeAttribute("hidden");
             return;
         }
-
-        const fragment = document.createDocumentFragment();
 
         const filteredDocs = documents.filter((docSnapshot) => {
             const data = docSnapshot.data();
@@ -451,7 +514,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!filteredDocs.length) {
             entryTableWrapper.setAttribute("hidden", "");
-            entryEmptyState.textContent = "No entries match the selected filters.";
+            let emptyMessage = "No entries match the selected filters.";
+            if (filterMonthSelect && filterMonthSelect.value !== "all") {
+                const selectedOption = filterMonthSelect.options[filterMonthSelect.selectedIndex];
+                const monthLabel = selectedOption ? selectedOption.textContent : filterMonthSelect.value;
+                emptyMessage = `No entries found for ${monthLabel}.`;
+            } else if (filterHouseholdSelect && filterHouseholdSelect.value) {
+                emptyMessage = `No entries found for ${filterHouseholdSelect.value}.`;
+            }
+            entryEmptyState.textContent = emptyMessage;
             entryEmptyState.removeAttribute("hidden");
             return;
         }
@@ -459,56 +530,51 @@ document.addEventListener("DOMContentLoaded", () => {
         entryEmptyState.setAttribute("hidden", "");
         entryTableWrapper.removeAttribute("hidden");
 
+        const visibleColumns = columnsDefinition.filter((column) => {
+            if (column.always) {
+                return true;
+            }
+
+            if (typeof column.hasValue === "function") {
+                return filteredDocs.some((docSnapshot) => column.hasValue(docSnapshot.data()));
+            }
+
+            return false;
+        });
+
+        if (entryTableHeadRow) {
+            const headFragment = document.createDocumentFragment();
+            visibleColumns.forEach((column) => {
+                const th = document.createElement("th");
+                th.scope = "col";
+                th.textContent = column.label;
+                headFragment.appendChild(th);
+            });
+            entryTableHeadRow.appendChild(headFragment);
+        }
+
+        const bodyFragment = document.createDocumentFragment();
+
         filteredDocs.forEach((docSnapshot, index) => {
             const data = docSnapshot.data();
             const row = document.createElement("tr");
 
-            const cells = [
-                String(index + 1),
-                formatMonthWithYear(data.month, data.createdAt, data.paymentDate),
-                data["householdName"] || data["household-name"] || "—",
-                formatInr(data.salaryAmount),
-                data.extraAmount === true || data.extraAmount === "yes" ? "Yes" : "",
-                data.extraAmount === true || data.extraAmount === "yes" ? formatInr(data.extraAmountValue) : "",
-                data.riceCollected === true || data.riceCollected === "yes" ? "Yes" : "",
-                data.gasRefill === true || data.gasRefill === "yes" ? "Yes" : "",
-                data.gasRefill === true || data.gasRefill === "yes" ? formatInr(data.gasAmount) : "",
-                data.extraAmount === true || data.extraAmount === "yes" || data.gasRefill === true || data.gasRefill === "yes"
-                    ? (data.amountReason || "")
-                    : "",
-            ];
-
-            const wrapColumns = new Set([2, 9]);
-
-            cells.forEach((value, index) => {
+            visibleColumns.forEach((column) => {
                 const cell = document.createElement("td");
-                if (wrapColumns.has(index)) {
-                    cell.classList.add("entry-table__cell--wrap");
-                } else {
-                    cell.classList.add("entry-table__cell--nowrap");
-                }
-                cell.textContent = value;
+                const value = column.getValue ? column.getValue(data, { index, doc: docSnapshot }) : "";
+                cell.classList.add(column.wrap ? "entry-table__cell--wrap" : "entry-table__cell--nowrap");
+                cell.textContent = value || "";
                 row.appendChild(cell);
             });
 
-            fragment.appendChild(row);
+            bodyFragment.appendChild(row);
         });
 
-        entryTableBody.appendChild(fragment);
+        entryTableBody.appendChild(bodyFragment);
+
         if (defaultEmptyStateMessage) {
             entryEmptyState.textContent = defaultEmptyStateMessage;
         }
-    };
-
-    const toBoolean = (value) => value === true || value === "yes" || value === "true";
-
-    const toNumberOrNull = (value) => {
-        if (value === undefined || value === null || value === "") {
-            return null;
-        }
-
-        const numericValue = Number(value);
-        return Number.isFinite(numericValue) ? numericValue : null;
     };
 
     const buildEntryPayload = (formData) => {
@@ -561,7 +627,6 @@ document.addEventListener("DOMContentLoaded", () => {
             (snapshot) => {
                 setEntryLoadingState(false);
                 latestEntryDocs = snapshot.docs;
-                updateHouseholdFilterOptions(latestEntryDocs);
                 renderEntries(latestEntryDocs);
             },
             (error) => {
@@ -614,19 +679,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const hideAuthModal = () => {
         if (!authModal) {
-            setDefaultMonthFilter();
-
-            if (filterMonthSelect) {
-                filterMonthSelect.addEventListener("change", () => {
-                    renderEntries(latestEntryDocs);
-                });
-            }
-
-            if (filterHouseholdSelect) {
-                filterHouseholdSelect.addEventListener("change", () => {
-                    renderEntries(latestEntryDocs);
-                });
-            }
             return;
         }
 
@@ -714,6 +766,19 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     restoreSessionFromStorage();
+    setDefaultMonthFilter();
+
+    if (filterMonthSelect) {
+        filterMonthSelect.addEventListener("change", () => {
+            renderEntries(latestEntryDocs);
+        });
+    }
+
+    if (filterHouseholdSelect) {
+        filterHouseholdSelect.addEventListener("change", () => {
+            renderEntries(latestEntryDocs);
+        });
+    }
     startEntriesListener();
 
     if (viewButtons.length) {
