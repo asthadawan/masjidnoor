@@ -73,6 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const entryEmptyState = document.querySelector("[data-entry-empty]");
     const entryLoadingIndicator = document.querySelector("[data-entry-loading]");
     const entryStatus = document.querySelector("[data-entry-status]");
+    const dashboardSubheading = document.querySelector("[data-dashboard-subheading]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
     const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
     const filterMonthSelect = document.querySelector("[data-filter-month]");
@@ -91,6 +92,33 @@ document.addEventListener("DOMContentLoaded", () => {
         "November",
         "December"
     ];
+
+    const getPreviousMonthDetails = (baseDate = new Date()) => {
+        const referenceDate = new Date(baseDate);
+        referenceDate.setHours(0, 0, 0, 0);
+        referenceDate.setMonth(referenceDate.getMonth() - 1);
+
+        const monthIndex = referenceDate.getMonth();
+        const monthName = monthNames[monthIndex] || "";
+        const year = referenceDate.getFullYear();
+
+        return { monthName, year };
+    };
+
+    const updateDashboardSubheading = () => {
+        if (!dashboardSubheading) {
+            return;
+        }
+
+        const { monthName, year } = getPreviousMonthDetails();
+        if (!monthName) {
+            dashboardSubheading.textContent = "";
+            return;
+        }
+
+        dashboardSubheading.textContent = `Masjid Imam Salary For the month ${monthName} ${year}`;
+    };
+
     let latestEntryDocs = [];
 
     const storageKey = "masjidnoorFormAccess";
@@ -333,9 +361,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const currentMonthName = monthNames[new Date().getMonth()] || "";
-        const optionExists = Array.from(filterMonthSelect.options).some((option) => option.value === currentMonthName);
-        const targetValue = optionExists ? currentMonthName : "all";
+        const { monthName } = getPreviousMonthDetails();
+        if (!monthName) {
+            filterMonthSelect.value = "all";
+            return;
+        }
+
+        const optionExists = Array.from(filterMonthSelect.options).some((option) => option.value === monthName);
+        const targetValue = optionExists ? monthName : "all";
         filterMonthSelect.value = targetValue;
     };
 
@@ -818,6 +851,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     restoreSessionFromStorage();
     setDefaultMonthFilter();
+    updateDashboardSubheading();
 
     if (filterMonthSelect) {
         filterMonthSelect.addEventListener("change", () => {
