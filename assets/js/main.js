@@ -1,3 +1,38 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+import { getAnalytics, isSupported as isAnalyticsSupported } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    serverTimestamp,
+    query,
+    orderBy,
+    onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBZXysolCVG8cTnTiC3m5Hk-eaDIVJlOpc",
+    authDomain: "masjidnoor-72827.firebaseapp.com",
+    projectId: "masjidnoor-72827",
+    storageBucket: "masjidnoor-72827.firebasestorage.app",
+    messagingSenderId: "900577400989",
+    appId: "1:900577400989:web:06b5fcd70f41162635dc74",
+    measurementId: "G-SZ5P153NY5"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firestore = getFirestore(firebaseApp);
+const entriesCollectionRef = collection(firestore, "entries");
+const entriesQueryRef = query(entriesCollectionRef, orderBy("createdAt", "desc"));
+
+isAnalyticsSupported().then((supported) => {
+    if (supported) {
+        getAnalytics(firebaseApp);
+    }
+}).catch(() => {
+    // Analytics is optional; ignore failures silently.
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     const navigation = document.getElementById("primary-navigation");
     const menuToggle = document.querySelector(".menu-toggle");
@@ -32,6 +67,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const authPasswordInput = document.getElementById("auth-password");
     const sessionTimerBanner = document.querySelector("[data-session-timer]");
     const sessionCountdownText = document.querySelector("[data-session-countdown]");
+    const entryTableWrapper = document.querySelector("[data-entry-table-wrapper]");
+    const entryTableBody = document.querySelector("[data-entry-table-body]");
+    const entryEmptyState = document.querySelector("[data-entry-empty]");
+    const entryLoadingIndicator = document.querySelector("[data-entry-loading]");
+    const entryStatus = document.querySelector("[data-entry-status]");
+    const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
+    const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
 
     const storageKey = "masjidnoorFormAccess";
     let hasFormAccess = false;
@@ -39,6 +81,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const sessionDurationMs = 10 * 60 * 1000;
     let sessionExpiryTimestamp = null;
     let sessionIntervalId = null;
+    const toggleGroupControllers = [];
+    let entriesUnsubscribe = null;
+    let entryStatusTimeoutId = null;
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -169,6 +214,247 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     };
 
+    const formatInr = (value) => {
+        if (value === undefined || value === null || value === "") {
+            return "—";
+        }
+
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return "—";
+        }
+
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            maximumFractionDigits: 0
+        }).format(numericValue);
+    };
+
+    const formatYesNo = (flag) => (flag ? "Yes" : "No");
+
+    const formatIsoDate = (value) => {
+        if (!value) {
+            return "—";
+        }
+
+        const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+        const match = isoPattern.exec(value);
+        if (!match) {
+            return value;
+        }
+
+        const [_, year, month, day] = match;
+        const date = new Date(Number(year), Number(month) - 1, Number(day));
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+
+        return date.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+        });
+    };
+
+    const formatTimestamp = (timestamp) => {
+        if (!timestamp) {
+            return "Pending";
+        }
+
+        try {
+            const dateInstance = typeof timestamp.toDate === "function" ? timestamp.toDate() : null;
+            const date = dateInstance instanceof Date ? dateInstance : new Date(timestamp);
+            if (Number.isNaN(date.getTime())) {
+                return "Pending";
+            }
+
+            return date.toLocaleString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        } catch (error) {
+            return "Pending";
+        }
+    };
+
+    const setEntryLoadingState = (isLoading, message = "") => {
+        if (!entryLoadingIndicator) {
+            return;
+        }
+
+        entryLoadingIndicator.textContent = message || (isLoading ? "Loading entries…" : "");
+
+        if (isLoading || message) {
+            entryLoadingIndicator.removeAttribute("hidden");
+        } else {
+            entryLoadingIndicator.setAttribute("hidden", "");
+        }
+    };
+
+    const setEntryStatus = (message, variant = "info", { persist = false } = {}) => {
+        if (!entryStatus) {
+            return;
+        }
+
+        if (entryStatusTimeoutId) {
+            window.clearTimeout(entryStatusTimeoutId);
+            entryStatusTimeoutId = null;
+        }
+
+        entryStatus.textContent = message;
+        entryStatus.classList.remove("form-status--success", "form-status--error");
+
+        if (variant === "success") {
+            entryStatus.classList.add("form-status--success");
+        } else if (variant === "error") {
+            entryStatus.classList.add("form-status--error");
+        }
+
+        if (message && !persist) {
+            entryStatusTimeoutId = window.setTimeout(() => {
+                entryStatus.textContent = "";
+                entryStatus.classList.remove("form-status--success", "form-status--error");
+                entryStatusTimeoutId = null;
+            }, 4000);
+        }
+    };
+
+    const renderEntries = (documents) => {
+        if (!entryTableBody || !entryTableWrapper || !entryEmptyState) {
+            return;
+        }
+
+        entryTableBody.innerHTML = "";
+
+        if (!documents.length) {
+            entryTableWrapper.setAttribute("hidden", "");
+            if (defaultEmptyStateMessage) {
+                entryEmptyState.textContent = defaultEmptyStateMessage;
+            }
+            entryEmptyState.removeAttribute("hidden");
+            return;
+        }
+
+        entryEmptyState.setAttribute("hidden", "");
+        entryTableWrapper.removeAttribute("hidden");
+
+        const fragment = document.createDocumentFragment();
+
+        documents.forEach((docSnapshot) => {
+            const data = docSnapshot.data();
+            const row = document.createElement("tr");
+
+            const cells = [
+                data.month || "—",
+                data["householdName"] || data["household-name"] || "—",
+                formatInr(data.salaryAmount),
+                formatYesNo(data.extraAmount === true || data.extraAmount === "yes"),
+                formatInr(data.extraAmountValue),
+                data.paymentMode ? data.paymentMode.toString().toUpperCase() : "—",
+                formatIsoDate(data.paymentDate),
+                formatYesNo(data.riceCollected === true || data.riceCollected === "yes"),
+                formatYesNo(data.gasRefill === true || data.gasRefill === "yes"),
+                formatInr(data.gasAmount),
+                data.amountReason || "—",
+                formatTimestamp(data.createdAt)
+            ];
+
+            const wrapColumns = new Set([1, 10]);
+
+            cells.forEach((value, index) => {
+                const cell = document.createElement("td");
+                if (wrapColumns.has(index)) {
+                    cell.classList.add("entry-table__cell--wrap");
+                } else {
+                    cell.classList.add("entry-table__cell--nowrap");
+                }
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
+
+            fragment.appendChild(row);
+        });
+
+        entryTableBody.appendChild(fragment);
+    };
+
+    const toBoolean = (value) => value === true || value === "yes" || value === "true";
+
+    const toNumberOrNull = (value) => {
+        if (value === undefined || value === null || value === "") {
+            return null;
+        }
+
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : null;
+    };
+
+    const buildEntryPayload = (formData) => {
+        const extrasFlag = formData.get("extra-amount");
+        const gasFlag = formData.get("gas-refill");
+
+        return {
+            month: (formData.get("month") || "").toString(),
+            householdName: (formData.get("household-name") || "").toString(),
+            salaryAmount: toNumberOrNull(formData.get("salary-amount")),
+            extraAmount: toBoolean(extrasFlag),
+            extraAmountValue: toBoolean(extrasFlag) ? toNumberOrNull(formData.get("extra-amount-value")) : null,
+            paymentMode: (formData.get("payment-mode") || "").toString().toLowerCase(),
+            paymentDate: formData.get("payment-date") || "",
+            riceCollected: toBoolean(formData.get("rice-collected")),
+            gasRefill: toBoolean(gasFlag),
+            gasAmount: toBoolean(gasFlag) ? toNumberOrNull(formData.get("gas-amount")) : null,
+            amountReason: (formData.get("amount-reason") || "").toString().trim(),
+            createdAt: serverTimestamp()
+        };
+    };
+
+    const resetEntryFormState = () => {
+        if (!entryForm) {
+            return;
+        }
+
+        entryForm.reset();
+        toggleGroupControllers.forEach((controller) => {
+            if (controller && typeof controller.reset === "function") {
+                controller.reset();
+            }
+        });
+        updateConditionalFields();
+    };
+
+    const startEntriesListener = () => {
+        if (!entriesQueryRef) {
+            return;
+        }
+
+        setEntryLoadingState(true);
+
+        if (entriesUnsubscribe) {
+            entriesUnsubscribe();
+        }
+
+        entriesUnsubscribe = onSnapshot(
+            entriesQueryRef,
+            (snapshot) => {
+                setEntryLoadingState(false);
+                renderEntries(snapshot.docs);
+            },
+            (error) => {
+                setEntryLoadingState(false, "Unable to load entries.");
+                if (entryEmptyState) {
+                    entryEmptyState.textContent = "Unable to load entries. Check your connection.";
+                    entryEmptyState.removeAttribute("hidden");
+                }
+                console.error("Error fetching entries:", error);
+            }
+        );
+    };
+
     const stopSessionCountdown = () => {
         if (sessionIntervalId) {
             window.clearInterval(sessionIntervalId);
@@ -295,6 +581,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     restoreSessionFromStorage();
+    startEntriesListener();
 
     if (viewButtons.length) {
         viewButtons.forEach((btn) => {
@@ -397,50 +684,96 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    if (toggleGroups.length) {
-        toggleGroups.forEach((group) => {
-            const fieldName = group.getAttribute("data-toggle-group");
-            const hiddenInput = fieldName ? document.getElementById(fieldName) : null;
-            const options = group.querySelectorAll(".binary-toggle__option");
+    const configureToggleGroup = (group) => {
+        const fieldName = group.getAttribute("data-toggle-group");
+        const hiddenInput = fieldName ? document.getElementById(fieldName) : null;
+        const options = Array.from(group.querySelectorAll(".binary-toggle__option"));
 
-            if (!hiddenInput || !options.length) {
-                return;
-            }
+        if (!hiddenInput || !options.length) {
+            return null;
+        }
 
-            const setActiveOption = (selectedOption) => {
-                const selectedValue = selectedOption.getAttribute("data-value");
-
-                options.forEach((option) => {
-                    const isActive = option === selectedOption;
-                    option.classList.toggle("is-active", isActive);
-                    option.setAttribute("aria-checked", String(isActive));
-                });
-
-                hiddenInput.value = selectedValue;
-
-                if (hiddenInput === extraAmountInput) {
-                    updateConditionalFields();
-                }
-
-                if (hiddenInput && hiddenInput.id === "gas-refill") {
-                    updateConditionalFields();
-                }
-            };
+        const applyValue = (value) => {
+            const targetOption = options.find((option) => option.getAttribute("data-value") === value) || options[0];
+            const selectedValue = targetOption ? targetOption.getAttribute("data-value") : value;
 
             options.forEach((option) => {
-                option.addEventListener("click", () => {
-                    setActiveOption(option);
-                });
+                const isActive = option === targetOption;
+                option.classList.toggle("is-active", isActive);
+                option.setAttribute("aria-checked", String(isActive));
             });
 
-            const initialActive = Array.from(options).find((option) => option.classList.contains("is-active")) || options[0];
-            setActiveOption(initialActive);
+            if (selectedValue) {
+                hiddenInput.value = selectedValue;
+            }
+
+            if (hiddenInput === extraAmountInput || hiddenInput.id === "gas-refill") {
+                updateConditionalFields();
+            }
+        };
+
+        options.forEach((option) => {
+            option.addEventListener("click", () => {
+                applyValue(option.getAttribute("data-value"));
+            });
+        });
+
+        const initialValue = hiddenInput.value || (options[0] ? options[0].getAttribute("data-value") : null);
+        applyValue(initialValue);
+
+        return {
+            reset: () => {
+                applyValue(hiddenInput.defaultValue || (options[0] ? options[0].getAttribute("data-value") : null));
+            }
+        };
+    };
+
+    if (toggleGroups.length) {
+        toggleGroups.forEach((group) => {
+            const controller = configureToggleGroup(group);
+            if (controller) {
+                toggleGroupControllers.push(controller);
+            }
         });
     }
 
     if (salaryInput) {
         salaryInput.addEventListener("input", updateConditionalFields);
         updateConditionalFields();
+    }
+
+    if (entryForm) {
+        entryForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            if (!hasFormAccess) {
+                showAuthModal("Please log in to submit an entry.");
+                return;
+            }
+
+            const formData = new FormData(entryForm);
+            const payload = buildEntryPayload(formData);
+
+            setEntryStatus("Saving entry…", "info", { persist: true });
+            if (entrySubmitButton) {
+                entrySubmitButton.disabled = true;
+                entrySubmitButton.setAttribute("aria-busy", "true");
+            }
+
+            try {
+                await addDoc(entriesCollectionRef, payload);
+                setEntryStatus("Entry saved successfully.", "success");
+                resetEntryFormState();
+            } catch (error) {
+                console.error("Error saving entry:", error);
+                setEntryStatus("Unable to save entry. Please try again.", "error", { persist: true });
+            } finally {
+                if (entrySubmitButton) {
+                    entrySubmitButton.disabled = false;
+                    entrySubmitButton.removeAttribute("aria-busy");
+                }
+            }
+        });
     }
 
     if (prayerGrid) {
@@ -633,4 +966,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentYear) {
         currentYear.textContent = String(new Date().getFullYear());
     }
+
+    window.addEventListener("beforeunload", () => {
+        if (entriesUnsubscribe) {
+            entriesUnsubscribe();
+        }
+    });
 });

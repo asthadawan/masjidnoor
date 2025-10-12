@@ -23,8 +23,33 @@
                 </div>
                 <div class="view-panels">
                     <section class="view-panel is-active" id="view-dashboard" role="tabpanel" aria-labelledby="view-dashboard-tab">
-                        <div class="panel-card">
-                            <p class="panel-card__placeholder">Dashboard insights will appear here. Use the toggle to switch to the entry form.</p>
+                        <div class="panel-card dashboard-card" data-entry-dashboard>
+                            <div class="dashboard-card__header">
+                                <h2 class="dashboard-card__heading">Recent Entries</h2>
+                                <span class="dashboard-card__status" data-entry-loading hidden>Loading entries…</span>
+                            </div>
+                            <p class="dashboard-card__empty" data-entry-empty hidden>No entries yet. Submit the form to populate the dashboard.</p>
+                            <div class="entry-table-wrapper" data-entry-table-wrapper hidden>
+                                <table class="entry-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Month</th>
+                                            <th scope="col">Household</th>
+                                            <th scope="col">Salary (INR)</th>
+                                            <th scope="col">Extra Amount</th>
+                                            <th scope="col">Extra Value (INR)</th>
+                                            <th scope="col">Payment Mode</th>
+                                            <th scope="col">Payment Date</th>
+                                            <th scope="col">Rice Collected</th>
+                                            <th scope="col">Gas Refill</th>
+                                            <th scope="col">Gas Amount (INR)</th>
+                                            <th scope="col">Reason</th>
+                                            <th scope="col">Submitted</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-entry-table-body></tbody>
+                                </table>
+                            </div>
                         </div>
                     </section>
                     <section class="view-panel" id="view-form" role="tabpanel" aria-labelledby="view-form-tab" hidden>
@@ -33,6 +58,7 @@
                                 <span class="form-session-banner__icon" aria-hidden="true">⏳</span>
                                 <span>Admin session active &bull; <span data-session-countdown>10:00</span> remaining</span>
                             </div>
+                            <p class="form-status" data-entry-status aria-live="polite"></p>
                             <div class="form-field">
                                 <label for="entry-month">Month</label>
                                 <select id="entry-month" name="month" required>
@@ -147,7 +173,7 @@
 
     <div class="auth-modal" data-auth-modal hidden>
         <div class="auth-modal__backdrop" data-auth-backdrop></div>
-        <div class="auth-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+    <script type="module" src="assets/js/main.js"></script>
             <h2 id="auth-modal-title">Admin Access</h2>
             <p class="auth-modal__description">Enter the admin credentials to view the form.</p>
             <form data-auth-form>
