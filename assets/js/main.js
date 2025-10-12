@@ -376,10 +376,11 @@ document.addEventListener("DOMContentLoaded", () => {
             label: "Payment Mode",
             wrap: false,
             hasValue: (data) => !!(data.paymentMode && data.paymentMode.toString().trim()),
+            emptyDisplay: "N/A",
             getValue: (data) => {
                 const rawValue = (data.paymentMode || "").toString();
                 if (!rawValue.trim()) {
-                    return "";
+                    return null;
                 }
 
                 if (rawValue.toLowerCase() === "none" || rawValue === "[none]") {
@@ -402,16 +403,18 @@ document.addEventListener("DOMContentLoaded", () => {
             label: "Extra Amount",
             wrap: false,
             hasValue: (data) => toBoolean(data.extraAmount),
-            getValue: () => "Yes"
+            emptyDisplay: "N/A",
+            getValue: (data) => (toBoolean(data.extraAmount) ? "Yes" : null)
         },
         {
             id: "extraAmountValue",
             label: "Extra Value",
             wrap: false,
             hasValue: (data) => toBoolean(data.extraAmount) && toNumberOrNull(data.extraAmountValue) !== null,
+            emptyDisplay: "N/A",
             getValue: (data) => {
                 const amount = toNumberOrNull(data.extraAmountValue);
-                return amount !== null ? formatInr(amount) : "";
+                return amount !== null ? formatInr(amount) : null;
             }
         },
         {
@@ -419,23 +422,26 @@ document.addEventListener("DOMContentLoaded", () => {
             label: "Rice Collected",
             wrap: false,
             hasValue: (data) => toBoolean(data.riceCollected),
-            getValue: () => "Yes"
+            emptyDisplay: "N/A",
+            getValue: (data) => (toBoolean(data.riceCollected) ? "Yes" : null)
         },
         {
             id: "gasRefill",
             label: "Gas Refill",
             wrap: false,
             hasValue: (data) => toBoolean(data.gasRefill),
-            getValue: () => "Yes"
+            emptyDisplay: "N/A",
+            getValue: (data) => (toBoolean(data.gasRefill) ? "Yes" : null)
         },
         {
             id: "gasAmount",
             label: "Gas Amount",
             wrap: false,
             hasValue: (data) => toBoolean(data.gasRefill) && toNumberOrNull(data.gasAmount) !== null,
+            emptyDisplay: "N/A",
             getValue: (data) => {
                 const amount = toNumberOrNull(data.gasAmount);
-                return amount !== null ? formatInr(amount) : "";
+                return amount !== null ? formatInr(amount) : null;
             }
         },
         {
@@ -448,7 +454,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return !!(data.amountReason && data.amountReason.toString().trim());
             },
-            getValue: (data) => (data.amountReason ? data.amountReason.toString().trim() : "")
+            emptyDisplay: "N/A",
+            getValue: (data) => {
+                const reason = data.amountReason ? data.amountReason.toString().trim() : "";
+                return reason ? reason : null;
+            }
         }
     ];
 
@@ -573,9 +583,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             visibleColumns.forEach((column) => {
                 const cell = document.createElement("td");
-                const value = column.getValue ? column.getValue(data, { index, doc: docSnapshot }) : "";
+                const rawValue = column.getValue ? column.getValue(data, { index, doc: docSnapshot }) : "";
+                const hasContent = rawValue !== undefined && rawValue !== null
+                    && (!(typeof rawValue === "string") || rawValue.trim() !== "");
+                const fallbackValue = column.emptyDisplay !== undefined ? column.emptyDisplay : "";
+                const displayValue = hasContent ? rawValue : fallbackValue;
                 cell.classList.add(column.wrap ? "entry-table__cell--wrap" : "entry-table__cell--nowrap");
-                cell.textContent = value || "";
+                cell.textContent = displayValue;
                 row.appendChild(cell);
             });
 
