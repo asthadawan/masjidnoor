@@ -7,7 +7,10 @@ import {
     serverTimestamp,
     query,
     orderBy,
-    onSnapshot
+    onSnapshot,
+    updateDoc,
+    deleteDoc,
+    doc
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -50,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const viewPanels = document.querySelectorAll(".view-panel");
     const toggleGroups = document.querySelectorAll("[data-toggle-group]");
     const entryForm = document.querySelector("[data-entry-form]");
+    const entryMonthSelect = document.getElementById("entry-month");
     const salaryInput = document.getElementById("salary-amount");
     const extraAmountInput = document.getElementById("extra-amount");
     const extraAmountWrapper = document.querySelector("[data-extra-amount-wrapper]");
@@ -59,6 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const gasWrapper = document.querySelector("[data-gas-wrapper]");
     const gasAmountInput = document.getElementById("gas-amount");
     const householdSelect = document.getElementById("household-name");
+    const paymentModeSelect = document.getElementById("payment-mode");
+    const paymentDateInput = document.getElementById("payment-date");
     const authModal = document.querySelector("[data-auth-modal]");
     const authForm = document.querySelector("[data-auth-form]");
     const authError = document.querySelector("[data-auth-error]");
@@ -75,6 +81,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const entryLoadingIndicator = document.querySelector("[data-entry-loading]");
     const entryStatus = document.querySelector("[data-entry-status]");
     const dashboardSubheading = document.querySelector("[data-dashboard-subheading]");
+    const entryEditingIndicator = document.querySelector("[data-entry-editing]");
+    const entryEditingLabel = document.querySelector("[data-entry-editing-label]");
+    const entryCancelEditButton = document.querySelector("[data-entry-cancel-edit]");
+    const manageSection = document.querySelector("[data-manage-section]");
+    const manageMonthSelect = document.querySelector("[data-manage-month]");
+    const manageList = document.querySelector("[data-manage-list]");
+    const manageEmptyState = document.querySelector("[data-manage-empty]");
     const overviewTotalHouseholds = document.querySelector("[data-overview-total-households]");
     const overviewPaidHouseholds = document.querySelector("[data-overview-paid-households]");
     const overviewPendingHouseholds = document.querySelector("[data-overview-pending-households]");
@@ -87,7 +100,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const overviewPaymentLegend = document.querySelector("[data-overview-payment-legend]");
     const overviewPaymentEmpty = document.querySelector("[data-overview-payment-empty]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
+    const defaultSubmitButtonLabel = entrySubmitButton ? entrySubmitButton.textContent : "";
     const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
+    const defaultManageEmptyMessage = manageEmptyState ? manageEmptyState.textContent : "";
     const filterMonthSelect = document.querySelector("[data-filter-month]");
     const filterHouseholdSelect = document.querySelector("[data-filter-household]");
     const monthNames = [
@@ -168,6 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     let latestEntryDocs = [];
+    let editingDocId = null;
 
     const storageKey = "masjidnoorFormAccess";
     let hasFormAccess = false;
@@ -404,6 +420,56 @@ document.addEventListener("DOMContentLoaded", () => {
             return "none";
         }
         return raw;
+    };
+
+    const setSelectValue = (selectElement, value) => {
+        if (!selectElement) {
+            return;
+        }
+
+        const normalizedValue = value || "";
+        if (normalizedValue) {
+            const optionExists = Array.from(selectElement.options).some((option) => option.value === normalizedValue);
+            if (!optionExists) {
+                const option = document.createElement("option");
+                option.value = normalizedValue;
+                option.textContent = normalizedValue;
+                selectElement.appendChild(option);
+            }
+        }
+
+        selectElement.value = normalizedValue;
+    };
+
+    const findToggleController = (name) => toggleGroupControllers.find((controller) => controller && controller.name === name) || null;
+
+    const setToggleGroupValue = (name, value) => {
+        const controller = findToggleController(name);
+        if (controller && typeof controller.setValue === "function") {
+            controller.setValue(value);
+        }
+    };
+
+    const getPaymentModeLabel = (value) => {
+        const normalized = normalizePaymentModeKey(value);
+        const matched = paymentModeMeta.find((mode) => mode.key === normalized);
+        if (matched) {
+            return matched.label;
+        }
+
+        if (!value) {
+            return "None";
+        }
+
+        return formatTitleCase(value);
+    };
+
+    const getDocSnapshotById = (docId) => {
+        if (!docId || !Array.isArray(latestEntryDocs)) {
+            return null;
+        }
+
+        return latestEntryDocs.find((docSnapshot) => docSnapshot.id === docId) || null;
     };
 
     const toBoolean = (value) => value === true || value === "yes" || value === "true";
@@ -666,6 +732,260 @@ document.addEventListener("DOMContentLoaded", () => {
         filterMonthSelect.value = targetValue;
     };
 
+    const setDefaultManageMonth = () => {
+        if (!manageMonthSelect) {
+            return;
+        }
+
+        const { monthName } = getPreviousMonthDetails();
+        if (!monthName) {
+            manageMonthSelect.value = "";
+            return;
+        }
+
+        const optionExists = Array.from(manageMonthSelect.options).some((option) => option.value === monthName);
+        manageMonthSelect.value = optionExists ? monthName : "";
+    };
+
+    const updateManageSectionVisibility = () => {
+        if (!manageSection) {
+            return;
+        }
+
+        if (hasFormAccess) {
+            manageSection.removeAttribute("hidden");
+            if (manageMonthSelect) {
+                manageMonthSelect.removeAttribute("disabled");
+            }
+            if (manageEmptyState && defaultManageEmptyMessage) {
+                manageEmptyState.textContent = defaultManageEmptyMessage;
+            }
+        } else {
+            manageSection.setAttribute("hidden", "");
+            if (manageMonthSelect) {
+                manageMonthSelect.setAttribute("disabled", "");
+                manageMonthSelect.value = "";
+            }
+            if (manageList) {
+                manageList.innerHTML = "";
+            }
+            if (manageEmptyState && defaultManageEmptyMessage) {
+                manageEmptyState.textContent = defaultManageEmptyMessage;
+                manageEmptyState.removeAttribute("hidden");
+            }
+        }
+    };
+
+    const renderManageEntries = (documents) => {
+        if (!manageList || !manageEmptyState) {
+            return;
+        }
+
+        manageList.innerHTML = "";
+
+        if (!hasFormAccess) {
+            if (defaultManageEmptyMessage) {
+                manageEmptyState.textContent = defaultManageEmptyMessage;
+            }
+            manageEmptyState.removeAttribute("hidden");
+            return;
+        }
+
+        const selectedMonth = manageMonthSelect ? manageMonthSelect.value : "";
+
+        if (!selectedMonth) {
+            manageEmptyState.textContent = defaultManageEmptyMessage || "Select a month to view entries.";
+            manageEmptyState.removeAttribute("hidden");
+            return;
+        }
+
+        const normalizedSelectedMonth = selectedMonth.toLowerCase();
+        const filteredDocs = Array.isArray(documents)
+            ? documents.filter((docSnapshot) => {
+                const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
+                if (!data) {
+                    return false;
+                }
+                return (data.month || "").toString().toLowerCase() === normalizedSelectedMonth;
+            })
+            : [];
+
+        if (!filteredDocs.length) {
+            manageEmptyState.textContent = `No entries found for ${selectedMonth}.`;
+            manageEmptyState.removeAttribute("hidden");
+            return;
+        }
+
+        manageEmptyState.setAttribute("hidden", "");
+
+        const fragment = document.createDocumentFragment();
+
+        filteredDocs.forEach((docSnapshot) => {
+            const data = docSnapshot.data();
+            const listItem = document.createElement("li");
+            listItem.className = "manage-entry";
+            listItem.dataset.docId = docSnapshot.id;
+
+            if (editingDocId && docSnapshot.id === editingDocId) {
+                listItem.classList.add("is-editing");
+            }
+
+            const householdLabel = data.householdName || data["household-name"] || "—";
+            const salaryAmount = toNumberOrNull(data.salaryAmount) || 0;
+            const extraAmount = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) || 0 : 0;
+            const gasAmount = toBoolean(data.gasRefill) ? toNumberOrNull(data.gasAmount) || 0 : 0;
+            const totalAmount = salaryAmount + extraAmount + gasAmount;
+
+            const title = document.createElement("span");
+            title.className = "manage-entry__title";
+            title.textContent = householdLabel;
+
+            const meta = document.createElement("p");
+            meta.className = "manage-entry__meta";
+
+            const salarySpan = document.createElement("span");
+            salarySpan.textContent = `Salary: ${formatCurrencyInr(salaryAmount)}`;
+
+            const totalSpan = document.createElement("span");
+            totalSpan.textContent = `Total: ${formatCurrencyInr(totalAmount)}`;
+
+            const modeSpan = document.createElement("span");
+            modeSpan.textContent = `Mode: ${getPaymentModeLabel(data.paymentMode)}`;
+
+            const dateSpan = document.createElement("span");
+            dateSpan.textContent = `Date: ${formatIsoDate(data.paymentDate)}`;
+
+            [salarySpan, totalSpan, modeSpan, dateSpan].forEach((element) => {
+                meta.appendChild(element);
+            });
+
+            const actions = document.createElement("div");
+            actions.className = "manage-entry__actions";
+
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "manage-entry__btn manage-entry__btn--edit";
+            editButton.textContent = "Edit";
+            editButton.setAttribute("data-manage-action", "edit");
+            editButton.setAttribute("data-doc-id", docSnapshot.id);
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "manage-entry__btn manage-entry__btn--delete";
+            deleteButton.textContent = "Delete";
+            deleteButton.setAttribute("data-manage-action", "delete");
+            deleteButton.setAttribute("data-doc-id", docSnapshot.id);
+
+            actions.append(editButton, deleteButton);
+
+            listItem.append(title, meta, actions);
+            fragment.appendChild(listItem);
+        });
+
+        manageList.appendChild(fragment);
+    };
+
+    const clearEditingState = () => {
+        editingDocId = null;
+        if (entryForm) {
+            entryForm.removeAttribute("data-editing-id");
+        }
+        if (entryEditingIndicator) {
+            entryEditingIndicator.setAttribute("hidden", "");
+        }
+        if (entryEditingLabel) {
+            entryEditingLabel.textContent = "";
+        }
+        if (entrySubmitButton) {
+            entrySubmitButton.textContent = defaultSubmitButtonLabel;
+        }
+        renderManageEntries(latestEntryDocs);
+    };
+
+    const beginEditingEntry = (docSnapshot) => {
+        if (!entryForm || !docSnapshot || typeof docSnapshot.data !== "function") {
+            return;
+        }
+
+        const data = docSnapshot.data();
+        if (!data) {
+            return;
+        }
+
+        if (entryForm.reset) {
+            entryForm.reset();
+        }
+
+        toggleGroupControllers.forEach((controller) => {
+            if (controller && typeof controller.reset === "function") {
+                controller.reset();
+            }
+        });
+
+        setSelectValue(entryMonthSelect, data.month || "");
+        setSelectValue(householdSelect, data.householdName || data["household-name"] || "");
+
+        if (salaryInput) {
+            const salaryAmountValue = toNumberOrNull(data.salaryAmount);
+            salaryInput.value = salaryAmountValue !== null ? salaryAmountValue : "";
+        }
+
+        const extrasFlag = toBoolean(data.extraAmount) ? "yes" : "no";
+        setToggleGroupValue("extra-amount", extrasFlag);
+        if (extraAmountValueInput) {
+            const extraAmountNumber = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) : null;
+            extraAmountValueInput.value = extraAmountNumber !== null ? extraAmountNumber : "";
+        }
+
+        const normalizedMode = normalizePaymentModeKey(data.paymentMode);
+        setSelectValue(paymentModeSelect, normalizedMode);
+
+        if (paymentDateInput) {
+            paymentDateInput.value = data.paymentDate || "";
+        }
+
+        const riceFlag = toBoolean(data.riceCollected) ? "yes" : "no";
+        setToggleGroupValue("rice-collected", riceFlag);
+
+        const gasFlag = toBoolean(data.gasRefill) ? "yes" : "no";
+        setToggleGroupValue("gas-refill", gasFlag);
+        if (gasAmountInput) {
+            const gasAmountNumber = toBoolean(data.gasRefill) ? toNumberOrNull(data.gasAmount) : null;
+            gasAmountInput.value = gasAmountNumber !== null ? gasAmountNumber : "";
+        }
+
+        if (reasonInput) {
+            reasonInput.value = data.amountReason ? data.amountReason.toString().trim() : "";
+        }
+
+        updateConditionalFields();
+
+        editingDocId = docSnapshot.id;
+        if (entryForm) {
+            entryForm.setAttribute("data-editing-id", editingDocId);
+        }
+
+        if (entrySubmitButton) {
+            entrySubmitButton.textContent = "Update Entry";
+        }
+
+        if (entryEditingIndicator) {
+            entryEditingIndicator.removeAttribute("hidden");
+        }
+
+        if (entryEditingLabel) {
+            const monthLabel = data.month || "—";
+            const householdLabel = data.householdName || data["household-name"] || "—";
+            entryEditingLabel.textContent = `${householdLabel} • ${monthLabel}`;
+        }
+
+        renderManageEntries(latestEntryDocs);
+
+        if (entryForm && typeof entryForm.scrollIntoView === "function") {
+            entryForm.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    };
+
     const columnsDefinition = [
         {
             id: "serial",
@@ -838,6 +1158,8 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        renderManageEntries(documents);
+
         if (entryTableHeadRow) {
             entryTableHeadRow.innerHTML = "";
         }
@@ -935,11 +1257,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    const buildEntryPayload = (formData) => {
+    const buildEntryPayload = (formData, { includeCreatedAt = true } = {}) => {
         const extrasFlag = formData.get("extra-amount");
         const gasFlag = formData.get("gas-refill");
 
-        return {
+        const payload = {
             month: (formData.get("month") || "").toString(),
             householdName: (formData.get("household-name") || "").toString(),
             salaryAmount: toNumberOrNull(formData.get("salary-amount")),
@@ -950,12 +1272,17 @@ document.addEventListener("DOMContentLoaded", () => {
             riceCollected: toBoolean(formData.get("rice-collected")),
             gasRefill: toBoolean(gasFlag),
             gasAmount: toBoolean(gasFlag) ? toNumberOrNull(formData.get("gas-amount")) : null,
-            amountReason: (formData.get("amount-reason") || "").toString().trim(),
-            createdAt: serverTimestamp()
+            amountReason: (formData.get("amount-reason") || "").toString().trim()
         };
+
+        if (includeCreatedAt) {
+            payload.createdAt = serverTimestamp();
+        }
+
+        return payload;
     };
 
-    const hasDuplicateEntryForPeriod = (month, household) => {
+    const hasDuplicateEntryForPeriod = (month, household, ignoreDocId = null) => {
         if (!month || !household || !Array.isArray(latestEntryDocs) || !latestEntryDocs.length) {
             return false;
         }
@@ -968,6 +1295,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         return latestEntryDocs.some((docSnapshot) => {
+            if (ignoreDocId && docSnapshot.id === ignoreDocId) {
+                return false;
+            }
+
             const data = docSnapshot.data ? docSnapshot.data() : null;
             if (!data) {
                 return false;
@@ -992,6 +1323,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
         updateConditionalFields();
+        clearEditingState();
     };
 
     const startEntriesListener = () => {
@@ -1011,6 +1343,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 setEntryLoadingState(false);
                 latestEntryDocs = snapshot.docs;
                 renderEntries(latestEntryDocs);
+                if (editingDocId) {
+                    const stillExists = latestEntryDocs.some((docSnapshot) => docSnapshot.id === editingDocId);
+                    if (!stillExists) {
+                        setEntryStatus("The entry you were editing is no longer available.", "info");
+                        resetEntryFormState();
+                    }
+                }
             },
             (error) => {
                 setEntryLoadingState(false, "Unable to load entries.");
@@ -1084,6 +1423,8 @@ document.addEventListener("DOMContentLoaded", () => {
         hasFormAccess = false;
         sessionExpiryTimestamp = null;
         clearStoredSession();
+        updateManageSectionVisibility();
+        resetEntryFormState();
 
         const formPanel = document.getElementById("view-form");
         if (formPanel && formPanel.classList.contains("is-active")) {
@@ -1139,6 +1480,12 @@ document.addEventListener("DOMContentLoaded", () => {
             clearStoredSession();
             stopSessionCountdown();
         }
+
+        updateManageSectionVisibility();
+        if (hasFormAccess && manageMonthSelect && !manageMonthSelect.value) {
+            setDefaultManageMonth();
+        }
+        renderManageEntries(latestEntryDocs);
     };
 
     const markAccessGranted = () => {
@@ -1146,12 +1493,19 @@ document.addEventListener("DOMContentLoaded", () => {
         sessionExpiryTimestamp = Date.now() + sessionDurationMs;
         persistSessionExpiry(sessionExpiryTimestamp);
         startSessionCountdown();
+        updateManageSectionVisibility();
+        if (manageMonthSelect && !manageMonthSelect.value) {
+            setDefaultManageMonth();
+        }
+        renderManageEntries(latestEntryDocs);
     };
 
     restoreSessionFromStorage();
     setDefaultMonthFilter();
+    setDefaultManageMonth();
     updateDashboardSubheading();
     updateOverviewMetrics([]);
+    renderManageEntries(latestEntryDocs);
 
     if (filterMonthSelect) {
         filterMonthSelect.addEventListener("change", () => {
@@ -1162,6 +1516,71 @@ document.addEventListener("DOMContentLoaded", () => {
     if (filterHouseholdSelect) {
         filterHouseholdSelect.addEventListener("change", () => {
             renderEntries(latestEntryDocs);
+        });
+    }
+
+    if (manageMonthSelect) {
+        manageMonthSelect.addEventListener("change", () => {
+            renderManageEntries(latestEntryDocs);
+        });
+    }
+
+    if (manageList) {
+        manageList.addEventListener("click", async (event) => {
+            const target = event.target instanceof HTMLElement ? event.target.closest("[data-manage-action]") : null;
+            if (!target) {
+                return;
+            }
+
+            const action = target.getAttribute("data-manage-action");
+            const docId = target.getAttribute("data-doc-id");
+
+            if (!docId) {
+                return;
+            }
+
+            if (!hasFormAccess) {
+                showAuthModal("Please log in to manage entries.");
+                return;
+            }
+
+            const docSnapshot = getDocSnapshotById(docId);
+            if (!docSnapshot) {
+                setEntryStatus("The selected entry could not be found. It may have been removed.", "error", { persist: true });
+                renderManageEntries(latestEntryDocs);
+                return;
+            }
+
+            if (action === "edit") {
+                beginEditingEntry(docSnapshot);
+                setEntryStatus("Loaded entry for editing. Update the fields and submit to save changes.", "info");
+                return;
+            }
+
+            if (action === "delete") {
+                const userConfirmed = window.confirm("Delete this entry? This action cannot be undone.");
+                if (!userConfirmed) {
+                    return;
+                }
+
+                target.disabled = true;
+                target.setAttribute("aria-busy", "true");
+
+                try {
+                    const entryDocRef = doc(entriesCollectionRef, docId);
+                    await deleteDoc(entryDocRef);
+                    setEntryStatus("Entry deleted successfully.", "success");
+                    if (editingDocId === docId) {
+                        resetEntryFormState();
+                    }
+                } catch (error) {
+                    console.error("Error deleting entry:", error);
+                    setEntryStatus("Unable to delete the entry. Please try again.", "error", { persist: true });
+                } finally {
+                    target.disabled = false;
+                    target.removeAttribute("aria-busy");
+                }
+            }
         });
     }
     startEntriesListener();
@@ -1240,7 +1659,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const extraAmountValue = extraAmountInput ? extraAmountInput.value : "no";
         const extraNeedsReason = extraAmountValue === "yes";
-    const gasValue = document.getElementById("gas-refill") ? document.getElementById("gas-refill").value : "no";
+        const gasValue = document.getElementById("gas-refill") ? document.getElementById("gas-refill").value : "no";
 
         if (reasonField && reasonInput) {
             const showReason = salaryNeedsReason || extraNeedsReason;
@@ -1305,8 +1724,12 @@ document.addEventListener("DOMContentLoaded", () => {
         applyValue(initialValue);
 
         return {
+            name: hiddenInput.id,
             reset: () => {
                 applyValue(hiddenInput.defaultValue || (options[0] ? options[0].getAttribute("data-value") : null));
+            },
+            setValue: (value) => {
+                applyValue(value);
             }
         };
     };
@@ -1334,23 +1757,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            const isEditing = Boolean(editingDocId);
             const formData = new FormData(entryForm);
-            const payload = buildEntryPayload(formData);
+            const payload = buildEntryPayload(formData, { includeCreatedAt: !isEditing });
 
-            if (hasDuplicateEntryForPeriod(payload.month, payload.householdName)) {
+            if (hasDuplicateEntryForPeriod(payload.month, payload.householdName, isEditing ? editingDocId : null)) {
                 setEntryStatus(`An entry for ${payload.householdName || "this household"} in ${payload.month || "this month"} already exists.`, "error", { persist: true });
                 return;
             }
 
-            setEntryStatus("Saving entry…", "info", { persist: true });
+            setEntryStatus(isEditing ? "Updating entry…" : "Saving entry…", "info", { persist: true });
             if (entrySubmitButton) {
                 entrySubmitButton.disabled = true;
                 entrySubmitButton.setAttribute("aria-busy", "true");
             }
 
             try {
-                await addDoc(entriesCollectionRef, payload);
-                setEntryStatus("Entry saved successfully.", "success");
+                if (isEditing && editingDocId) {
+                    const entryDocRef = doc(entriesCollectionRef, editingDocId);
+                    await updateDoc(entryDocRef, {
+                        ...payload,
+                        updatedAt: serverTimestamp()
+                    });
+                    setEntryStatus("Entry updated successfully.", "success");
+                } else {
+                    await addDoc(entriesCollectionRef, payload);
+                    setEntryStatus("Entry saved successfully.", "success");
+                }
                 resetEntryFormState();
             } catch (error) {
                 console.error("Error saving entry:", error);
@@ -1361,6 +1794,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     entrySubmitButton.removeAttribute("aria-busy");
                 }
             }
+        });
+    }
+
+    if (entryCancelEditButton) {
+        entryCancelEditButton.addEventListener("click", () => {
+            if (editingDocId) {
+                setEntryStatus("Editing cancelled.", "info");
+            }
+            resetEntryFormState();
         });
     }
 

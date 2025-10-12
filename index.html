@@ -152,6 +152,10 @@
                                 <span class="form-session-banner__icon" aria-hidden="true">⏳</span>
                                 <span>Admin session active &bull; <span data-session-countdown>10:00</span> remaining</span>
                             </div>
+                            <div class="form-editing-indicator" data-entry-editing hidden>
+                                <span class="form-editing-indicator__text">Editing entry for <strong data-entry-editing-label></strong></span>
+                                <button type="button" class="form-editing-indicator__cancel" data-entry-cancel-edit>Cancel</button>
+                            </div>
                             <p class="form-status" data-entry-status aria-live="polite"></p>
                             <div class="form-field">
                                 <label for="entry-month">Month</label>
@@ -260,6 +264,31 @@
                             </div>
                             <button type="submit" class="form-card__submit">Submit Entry</button>
                         </form>
+                        <section class="manage-entries" data-manage-section hidden aria-labelledby="manage-entries-title">
+                            <div class="manage-entries__header">
+                                <h3 class="manage-entries__title" id="manage-entries-title">Manage Entries</h3>
+                                <label class="manage-entries__filter">
+                                    <span>Select month</span>
+                                    <select data-manage-month>
+                                        <option value="" selected>Select month</option>
+                                        <option value="January">January</option>
+                                        <option value="February">February</option>
+                                        <option value="March">March</option>
+                                        <option value="April">April</option>
+                                        <option value="May">May</option>
+                                        <option value="June">June</option>
+                                        <option value="July">July</option>
+                                        <option value="August">August</option>
+                                        <option value="September">September</option>
+                                        <option value="October">October</option>
+                                        <option value="November">November</option>
+                                        <option value="December">December</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <p class="manage-entries__empty" data-manage-empty>Select a month to view entries.</p>
+                            <ul class="manage-entries__list" data-manage-list></ul>
+                        </section>
                     </section>
                 </div>
             </div>
