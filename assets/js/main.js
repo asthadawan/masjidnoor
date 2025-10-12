@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const manageMonthSelect = document.querySelector("[data-manage-month]");
     const manageList = document.querySelector("[data-manage-list]");
     const manageEmptyState = document.querySelector("[data-manage-empty]");
+    const entryPrintButton = document.querySelector("[data-entry-print]");
     const overviewTotalHouseholds = document.querySelector("[data-overview-total-households]");
     const overviewPaidHouseholds = document.querySelector("[data-overview-paid-households]");
     const overviewPendingHouseholds = document.querySelector("[data-overview-pending-households]");
@@ -183,7 +184,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     let latestEntryDocs = [];
+    let latestFilteredDocs = [];
+    let latestVisibleColumns = [];
     let editingDocId = null;
+    let printSheetContainer = null;
 
     const storageKey = "masjidnoorFormAccess";
     let hasFormAccess = false;
@@ -472,6 +476,54 @@ document.addEventListener("DOMContentLoaded", () => {
         return latestEntryDocs.find((docSnapshot) => docSnapshot.id === docId) || null;
     };
 
+    const getSelectedOptionText = (selectElement, fallbackLabel) => {
+        if (!selectElement) {
+            return fallbackLabel;
+        }
+
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const label = selectedOption ? selectedOption.textContent.trim() : "";
+        return label || fallbackLabel;
+    };
+
+    const getMonthFilterLabel = () => {
+        if (!filterMonthSelect || !filterMonthSelect.value || filterMonthSelect.value === "all") {
+            return "All months";
+        }
+
+        return getSelectedOptionText(filterMonthSelect, filterMonthSelect.value);
+    };
+
+    const getHouseholdFilterLabel = () => {
+        if (!filterHouseholdSelect || !filterHouseholdSelect.value) {
+            return "All households";
+        }
+
+        return getSelectedOptionText(filterHouseholdSelect, filterHouseholdSelect.value);
+    };
+
+    const ensurePrintSheetContainer = () => {
+        if (printSheetContainer && document.body.contains(printSheetContainer)) {
+            return printSheetContainer;
+        }
+
+        const container = document.createElement("section");
+        container.className = "print-sheet";
+        container.setAttribute("hidden", "");
+        document.body.appendChild(container);
+        printSheetContainer = container;
+        return container;
+    };
+
+    const resetPrintSheetContainer = () => {
+        if (!printSheetContainer) {
+            return;
+        }
+
+        printSheetContainer.setAttribute("hidden", "");
+        printSheetContainer.innerHTML = "";
+    };
+
     const toBoolean = (value) => value === true || value === "yes" || value === "true";
 
     const toNumberOrNull = (value) => {
@@ -481,6 +533,96 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const numericValue = Number(value);
         return Number.isFinite(numericValue) ? numericValue : null;
+    };
+
+    const preparePrintSheetContent = () => {
+        if (!latestFilteredDocs.length || !latestVisibleColumns.length) {
+            return null;
+        }
+
+        const container = ensurePrintSheetContainer();
+        container.innerHTML = "";
+        container.removeAttribute("hidden");
+
+        const title = document.createElement("h1");
+        title.className = "print-sheet__title";
+        title.dir = "rtl";
+        title.textContent = "مسجد نور بٹھار کمیٹی";
+        container.appendChild(title);
+
+        const subtitle = document.createElement("h2");
+        subtitle.className = "print-sheet__subtitle";
+        subtitle.textContent = "Imam Salary Records";
+        container.appendChild(subtitle);
+
+        const monthLabel = getMonthFilterLabel();
+        const householdLabel = getHouseholdFilterLabel();
+
+        const contextLine = document.createElement("p");
+        contextLine.className = "print-sheet__context";
+        contextLine.textContent = `Month: ${monthLabel} • Household: ${householdLabel}`;
+        container.appendChild(contextLine);
+
+        const totals = latestFilteredDocs.reduce((acc, docSnapshot) => {
+            const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
+            if (!data) {
+                return acc;
+            }
+
+            const salaryAmount = toNumberOrNull(data.salaryAmount) || 0;
+            const extraAmountValue = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) || 0 : 0;
+            const gasAmountValue = toBoolean(data.gasRefill) ? toNumberOrNull(data.gasAmount) || 0 : 0;
+
+            acc.salary += salaryAmount;
+            acc.extra += extraAmountValue;
+            acc.gas += gasAmountValue;
+            return acc;
+        }, { salary: 0, extra: 0, gas: 0 });
+
+        const totalAmount = totals.salary + totals.extra + totals.gas;
+
+        const metaLine = document.createElement("p");
+        metaLine.className = "print-sheet__meta";
+        metaLine.textContent = `Records: ${latestFilteredDocs.length} • Total Amount: ${formatCurrencyInr(totalAmount)} • Printed: ${new Date().toLocaleString()}`;
+        container.appendChild(metaLine);
+
+        const table = document.createElement("table");
+        table.className = "print-sheet__table";
+
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        latestVisibleColumns.forEach((column) => {
+            const th = document.createElement("th");
+            th.scope = "col";
+            th.textContent = column.label;
+            headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        latestFilteredDocs.forEach((docSnapshot, index) => {
+            const data = docSnapshot.data();
+            const row = document.createElement("tr");
+
+            latestVisibleColumns.forEach((column) => {
+                const cell = document.createElement("td");
+                const rawValue = column.getValue ? column.getValue(data, { index, doc: docSnapshot }) : "";
+                const hasContent = rawValue !== undefined && rawValue !== null
+                    && (!(typeof rawValue === "string") || rawValue.trim() !== "");
+                const fallbackValue = column.emptyDisplay !== undefined ? column.emptyDisplay : "";
+                const value = hasContent ? rawValue : fallbackValue;
+                cell.textContent = typeof value === "string" ? value : (value !== null && value !== undefined ? String(value) : "");
+                row.appendChild(cell);
+            });
+
+            tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        container.appendChild(table);
+
+        return container;
     };
 
     const prepareCanvasForDrawing = (canvas, context) => {
@@ -1159,6 +1301,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         renderManageEntries(documents);
+        resetPrintSheetContainer();
+
+        latestFilteredDocs = [];
+        latestVisibleColumns = [];
+        if (entryPrintButton) {
+            entryPrintButton.setAttribute("hidden", "");
+        }
 
         if (entryTableHeadRow) {
             entryTableHeadRow.innerHTML = "";
@@ -1185,6 +1334,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 : true;
             return monthMatch && householdMatch;
         });
+
+        latestFilteredDocs = filteredDocs;
 
         updateOverviewMetrics(filteredDocs);
 
@@ -1217,6 +1368,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             return false;
         });
+
+        latestVisibleColumns = visibleColumns;
 
         if (entryTableHeadRow) {
             const headFragment = document.createDocumentFragment();
@@ -1251,6 +1404,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         entryTableBody.appendChild(bodyFragment);
+
+        if (entryPrintButton) {
+            entryPrintButton.removeAttribute("hidden");
+        }
 
         if (defaultEmptyStateMessage) {
             entryEmptyState.textContent = defaultEmptyStateMessage;
@@ -1524,6 +1681,27 @@ document.addEventListener("DOMContentLoaded", () => {
             renderManageEntries(latestEntryDocs);
         });
     }
+
+    if (entryPrintButton) {
+        entryPrintButton.addEventListener("click", () => {
+            const container = preparePrintSheetContent();
+            if (!container) {
+                return;
+            }
+
+            window.requestAnimationFrame(() => {
+                window.print();
+            });
+        });
+    }
+
+    window.addEventListener("beforeprint", () => {
+        preparePrintSheetContent();
+    });
+
+    window.addEventListener("afterprint", () => {
+        resetPrintSheetContainer();
+    });
 
     if (manageList) {
         manageList.addEventListener("click", async (event) => {
