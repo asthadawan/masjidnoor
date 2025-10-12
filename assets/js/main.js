@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const donateNowButton = document.querySelector("[data-donate-now]");
     const contactForm = document.querySelector("[data-contact-form]");
     const currentYear = document.querySelector("[data-current-year]");
+    const viewButtons = document.querySelectorAll(".view-toggle__btn");
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -64,6 +65,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 headingToggle.classList.remove("is-switching");
             }, 720);
         }, 5200);
+    }
+
+    if (viewButtons.length) {
+        viewButtons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const targetView = btn.getAttribute("data-view");
+                viewButtons.forEach((button) => {
+                    const isActive = button === btn;
+                    button.classList.toggle("is-active", isActive);
+                    button.setAttribute("aria-selected", String(isActive));
+                });
+                // Placeholder: hook view switching logic here when sections exist.
+                console.debug(`Switched to view: ${targetView}`);
+            });
+        });
     }
 
     if (prayerGrid) {
