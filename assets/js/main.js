@@ -62,8 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 activeIndex = (activeIndex + 1) % headings.length;
                 applyHeading(headings[activeIndex]);
                 headingToggle.classList.remove("is-switching");
-            }, 350);
-        }, 4800);
+            }, 720);
+        }, 5200);
     }
 
     if (prayerGrid) {
