@@ -13,6 +13,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentYear = document.querySelector("[data-current-year]");
     const viewButtons = document.querySelectorAll(".view-toggle__btn");
     const viewPanels = document.querySelectorAll(".view-panel");
+    const toggleGroups = document.querySelectorAll("[data-toggle-group]");
+    const entryForm = document.querySelector("[data-entry-form]");
+    const salaryInput = document.getElementById("salary-amount");
+    const extraAmountInput = document.getElementById("extra-amount");
+    const extraAmountWrapper = document.querySelector("[data-extra-amount-wrapper]");
+    const extraAmountValueInput = document.getElementById("extra-amount-value");
+    const reasonField = document.querySelector("[data-reason-field]");
+    const reasonInput = document.getElementById("amount-reason");
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -101,6 +109,75 @@ document.addEventListener("DOMContentLoaded", () => {
         if (initialButton) {
             activateView(initialButton.getAttribute("data-view"));
         }
+    }
+
+    const updateConditionalFields = () => {
+        if (!entryForm) {
+            return;
+        }
+
+        const salaryValue = salaryInput && salaryInput.value !== "" ? Number(salaryInput.value) : NaN;
+        const salaryNeedsReason = Number.isFinite(salaryValue) && salaryValue !== 250;
+
+        const extraAmountValue = extraAmountInput ? extraAmountInput.value : "no";
+        const extraNeedsReason = extraAmountValue === "yes";
+
+        if (reasonField && reasonInput) {
+            const showReason = salaryNeedsReason || extraNeedsReason;
+            reasonField.classList.toggle("is-hidden", !showReason);
+            reasonInput.required = showReason;
+        }
+
+        if (extraAmountWrapper && extraAmountValueInput) {
+            const showExtraField = extraAmountValue === "yes";
+            extraAmountWrapper.classList.toggle("is-hidden", !showExtraField);
+            extraAmountValueInput.required = showExtraField;
+            if (!showExtraField) {
+                extraAmountValueInput.value = "";
+            }
+        }
+    };
+
+    if (toggleGroups.length) {
+        toggleGroups.forEach((group) => {
+            const fieldName = group.getAttribute("data-toggle-group");
+            const hiddenInput = fieldName ? document.getElementById(fieldName) : null;
+            const options = group.querySelectorAll(".binary-toggle__option");
+
+            if (!hiddenInput || !options.length) {
+                return;
+            }
+
+            const setActiveOption = (selectedOption) => {
+                const selectedValue = selectedOption.getAttribute("data-value");
+
+                options.forEach((option) => {
+                    const isActive = option === selectedOption;
+                    option.classList.toggle("is-active", isActive);
+                    option.setAttribute("aria-checked", String(isActive));
+                });
+
+                hiddenInput.value = selectedValue;
+
+                if (hiddenInput === extraAmountInput) {
+                    updateConditionalFields();
+                }
+            };
+
+            options.forEach((option) => {
+                option.addEventListener("click", () => {
+                    setActiveOption(option);
+                });
+            });
+
+            const initialActive = Array.from(options).find((option) => option.classList.contains("is-active")) || options[0];
+            setActiveOption(initialActive);
+        });
+    }
+
+    if (salaryInput) {
+        salaryInput.addEventListener("input", updateConditionalFields);
+        updateConditionalFields();
     }
 
     if (prayerGrid) {
