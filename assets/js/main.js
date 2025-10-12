@@ -535,6 +535,45 @@ document.addEventListener("DOMContentLoaded", () => {
         return Number.isFinite(numericValue) ? numericValue : null;
     };
 
+    const parseIsoDateToMillis = (value) => {
+        if (!value || typeof value !== "string") {
+            return null;
+        }
+
+        const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+        const match = isoPattern.exec(value.trim());
+        if (!match) {
+            return null;
+        }
+
+        const [, year, month, day] = match;
+        const date = new Date(Number(year), Number(month) - 1, Number(day));
+        const millis = date.getTime();
+        return Number.isNaN(millis) ? null : millis;
+    };
+
+    const getDocSortTimestamps = (docSnapshot) => {
+        const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
+        if (!data) {
+            return { payment: Number.POSITIVE_INFINITY, created: Number.POSITIVE_INFINITY };
+        }
+
+        const paymentMillis = parseIsoDateToMillis(data.paymentDate);
+
+        let createdMillis = Number.POSITIVE_INFINITY;
+        if (data.createdAt && typeof data.createdAt.toMillis === "function") {
+            createdMillis = data.createdAt.toMillis();
+        } else if (data.createdAt instanceof Date) {
+            const value = data.createdAt.getTime();
+            createdMillis = Number.isNaN(value) ? Number.POSITIVE_INFINITY : value;
+        }
+
+        return {
+            payment: paymentMillis !== null ? paymentMillis : Number.POSITIVE_INFINITY,
+            created: createdMillis
+        };
+    };
+
     const preparePrintSheetContent = () => {
         if (!latestFilteredDocs.length || !latestVisibleColumns.length) {
             return null;
@@ -1343,6 +1382,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? (data.householdName || data["household-name"] || "").toString() === filterHouseholdSelect.value
                 : true;
             return monthMatch && householdMatch;
+        });
+
+        filteredDocs.sort((a, b) => {
+            const aTimes = getDocSortTimestamps(a);
+            const bTimes = getDocSortTimestamps(b);
+
+            if (aTimes.payment !== bTimes.payment) {
+                return aTimes.payment - bTimes.payment;
+            }
+
+            return aTimes.created - bTimes.created;
         });
 
         latestFilteredDocs = filteredDocs;
