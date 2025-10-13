@@ -121,6 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "December"
     ];
     const instagramLink = document.querySelector("[data-instagram-link]");
+    const romanToBritishApiKey = "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";
 
     const getCssVariableValue = (name, fallback = "") => {
         try {
@@ -136,6 +137,54 @@ document.addEventListener("DOMContentLoaded", () => {
         { key: "cash", label: "Cash", color: getCssVariableValue("--brand-sand", "#c0aa83") },
         { key: "none", label: "None", color: "#6c757d" }
     ];
+
+    const convertReasonToBritishEnglish = async (text) => {
+        const trimmed = typeof text === "string" ? text.trim() : "";
+        if (!trimmed) {
+            return "";
+        }
+
+        if (!romanToBritishApiKey) {
+            return trimmed;
+        }
+
+        try {
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${romanToBritishApiKey}`,
+                    "X-Title": "Masjid Noor Dashboard"
+                },
+                body: JSON.stringify({
+                    model: "openai/gpt-4o-mini",
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are a helpful assistant who rewrites Roman English input into natural British English. Keep the meaning intact and reply with only the rewritten sentence."
+                        },
+                        {
+                            role: "user",
+                            content: trimmed
+                        }
+                    ],
+                    temperature: 0.2,
+                    max_tokens: 150
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Roman to British conversion failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            const converted = data?.choices?.[0]?.message?.content;
+            return typeof converted === "string" && converted.trim() ? converted.trim() : trimmed;
+        } catch (error) {
+            console.error("Unable to convert reason text:", error);
+            return trimmed;
+        }
+    };
 
     const uniqueHouseholdsList = (() => {
         if (!householdSelect) {
@@ -2119,11 +2168,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            setEntryStatus(isEditing ? "Updating entry…" : "Saving entry…", "info", { persist: true });
             if (entrySubmitButton) {
                 entrySubmitButton.disabled = true;
                 entrySubmitButton.setAttribute("aria-busy", "true");
             }
+
+            if (payload.amountReason) {
+                setEntryStatus("Converting reason to British English…", "info", { persist: true });
+                payload.amountReason = await convertReasonToBritishEnglish(payload.amountReason);
+            }
+
+            setEntryStatus(isEditing ? "Updating entry…" : "Saving entry…", "info", { persist: true });
 
             try {
                 if (isEditing && editingDocId) {
