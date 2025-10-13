@@ -1462,10 +1462,8 @@ document.addEventListener("DOMContentLoaded", () => {
             label: "Reason",
             wrap: true,
             hasValue: (data) => {
-                if (!(toBoolean(data.extraAmount) || toBoolean(data.gasRefill))) {
-                    return false;
-                }
-                return !!(data.amountReason && data.amountReason.toString().trim());
+                const reason = data.amountReason ? data.amountReason.toString().trim() : "";
+                return Boolean(reason);
             },
             emptyDisplay: "N/A",
             getValue: (data) => {
