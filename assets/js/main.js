@@ -174,18 +174,28 @@ document.addEventListener("DOMContentLoaded", () => {
         return { monthName, year };
     };
 
-    const updateDashboardSubheading = () => {
+    const updateDashboardSubheading = ({ monthName, year } = {}) => {
         if (!dashboardSubheading) {
             return;
         }
 
-        const { monthName, year } = getPreviousMonthDetails();
-        if (!monthName) {
+        let targetMonth = monthName;
+        let targetYear = year;
+
+        if (!targetMonth) {
+            const previous = getPreviousMonthDetails();
+            targetMonth = previous.monthName;
+            targetYear = previous.year;
+        } else if (!targetYear) {
+            targetYear = new Date().getFullYear();
+        }
+
+        if (!targetMonth) {
             dashboardSubheading.textContent = "";
             return;
         }
 
-        dashboardSubheading.textContent = `Masjid Imam Salary For the month ${monthName} ${year}`;
+        dashboardSubheading.textContent = `Masjid Imam Salary For the month ${targetMonth} ${targetYear}`;
     };
 
     let latestEntryDocs = [];
@@ -564,6 +574,54 @@ document.addEventListener("DOMContentLoaded", () => {
         const date = new Date(Number(year), Number(month) - 1, Number(day));
         const millis = date.getTime();
         return Number.isNaN(millis) ? null : millis;
+    };
+
+    const parseIsoDateToYear = (value) => {
+        if (!value || typeof value !== "string") {
+            return null;
+        }
+
+        const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+        const match = isoPattern.exec(value.trim());
+        if (!match) {
+            return null;
+        }
+
+        const year = Number(match[1]);
+        return Number.isFinite(year) ? year : null;
+    };
+
+    const deriveYearFromDocument = (docSnapshot) => {
+        if (!docSnapshot || typeof docSnapshot.data !== "function") {
+            return null;
+        }
+
+        const data = docSnapshot.data();
+        if (!data) {
+            return null;
+        }
+
+        const paymentYear = parseIsoDateToYear(data.paymentDate);
+        if (paymentYear) {
+            return paymentYear;
+        }
+
+        const createdAt = data.createdAt;
+        if (createdAt && typeof createdAt.toDate === "function") {
+            const date = createdAt.toDate();
+            if (date instanceof Date && !Number.isNaN(date.getTime())) {
+                return date.getFullYear();
+            }
+        } else if (createdAt instanceof Date && !Number.isNaN(createdAt.getTime())) {
+            return createdAt.getFullYear();
+        } else if (createdAt && typeof createdAt.seconds === "number") {
+            const date = new Date(createdAt.seconds * 1000);
+            if (!Number.isNaN(date.getTime())) {
+                return date.getFullYear();
+            }
+        }
+
+        return null;
     };
 
     const getDocSortTimestamps = (docSnapshot) => {
@@ -1542,6 +1600,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 entryEmptyState.textContent = defaultEmptyStateMessage;
             }
             entryEmptyState.removeAttribute("hidden");
+            updateDashboardSubheading();
             return;
         }
 
@@ -1570,6 +1629,19 @@ document.addEventListener("DOMContentLoaded", () => {
         latestFilteredDocs = filteredDocs;
 
         updateOverviewMetrics(filteredDocs);
+
+        if (!filterMonthSelect || filterMonthSelect.value === "all") {
+            updateDashboardSubheading();
+        } else {
+            const filteredYear = filteredDocs.reduce((acc, docSnapshot) => {
+                if (acc) {
+                    return acc;
+                }
+                return deriveYearFromDocument(docSnapshot);
+            }, null);
+            const fallbackYear = filteredYear || new Date().getFullYear();
+            updateDashboardSubheading({ monthName: filterMonthSelect.value, year: fallbackYear });
+        }
 
         if (!filteredDocs.length) {
             entryTableWrapper.setAttribute("hidden", "");
