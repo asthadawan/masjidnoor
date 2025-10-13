@@ -120,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "November",
         "December"
     ];
+    const instagramLink = document.querySelector("[data-instagram-link]");
 
     const getCssVariableValue = (name, fallback = "") => {
         try {
@@ -1813,6 +1814,40 @@ document.addEventListener("DOMContentLoaded", () => {
     if (filterHouseholdSelect) {
         filterHouseholdSelect.addEventListener("change", () => {
             renderEntries(latestEntryDocs);
+        });
+    }
+
+    if (instagramLink) {
+        instagramLink.addEventListener("click", (event) => {
+            const fallbackUrl = instagramLink.getAttribute("data-instagram-web") || "";
+            const appUrl = instagramLink.getAttribute("href") || "";
+
+            if (appUrl) {
+                let openTimeout;
+
+                const handleVisibilityChange = () => {
+                    if (document.visibilityState === "hidden") {
+                        clearTimeout(openTimeout);
+                    }
+                };
+
+                event.preventDefault();
+                window.location.href = appUrl;
+
+                openTimeout = window.setTimeout(() => {
+                    if (fallbackUrl) {
+                        window.location.href = fallbackUrl;
+                    }
+                }, 1800);
+
+                document.addEventListener("visibilitychange", handleVisibilityChange, { once: true });
+                window.addEventListener("blur", () => {
+                    clearTimeout(openTimeout);
+                }, { once: true });
+            } else if (fallbackUrl) {
+                event.preventDefault();
+                window.location.href = fallbackUrl;
+            }
         });
     }
 
