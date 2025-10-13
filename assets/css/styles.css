@@ -32,6 +32,45 @@ body {
     background-size: cover;
 }
 
+.floating-footer {
+    position: fixed;
+    inset-block-end: 1rem;
+    inset-inline: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.78);
+    color: #ffffff;
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.45);
+    font-size: 0.9rem;
+    letter-spacing: 0.015em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    z-index: 1000;
+}
+
+.floating-footer__link {
+    color: #d5f5d3;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.floating-footer__link:hover,
+.floating-footer__link:focus-visible {
+    text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .floating-footer {
+        inset-block-end: 0.75rem;
+        inset-inline: 0.75rem;
+        transform: none;
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.85rem;
+    }
+}
+
 .container {
     width: min(1100px, 92vw);
     margin: 0 auto;
