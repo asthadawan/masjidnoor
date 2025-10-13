@@ -121,6 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "December"
     ];
     const instagramLink = document.querySelector("[data-instagram-link]");
+    const reasonConvertButton = document.querySelector("[data-reason-convert]");
     const romanToBritishApiKey = "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";
 
     const getCssVariableValue = (name, fallback = "") => {
@@ -260,7 +261,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const toggleGroupControllers = [];
     let entriesUnsubscribe = null;
     let entryStatusTimeoutId = null;
-    const pendingReasonNormalizations = new Set();
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -1421,62 +1421,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
-    const normalizeReasonFieldsForDocs = (docSnapshots) => {
-        if (!Array.isArray(docSnapshots) || !docSnapshots.length) {
-            return;
-        }
-
-        const candidates = docSnapshots.filter((docSnapshot) => {
-            if (!docSnapshot || typeof docSnapshot.data !== "function") {
-                return false;
-            }
-
-            const data = docSnapshot.data();
-            const rawReason = data && data.amountReason ? data.amountReason.toString().trim() : "";
-            if (!rawReason) {
-                return false;
-            }
-
-            const normalisedState = data.amountReasonNormalized || data.amountReasonNormalised;
-            if (normalisedState === "converted" || normalisedState === "original") {
-                return false;
-            }
-
-            return !pendingReasonNormalizations.has(docSnapshot.id);
-        });
-
-        if (!candidates.length) {
-            return;
-        }
-
-        candidates.forEach((docSnapshot) => {
-            const docId = docSnapshot.id;
-            pendingReasonNormalizations.add(docId);
-
-            (async () => {
-                try {
-                    const data = docSnapshot.data();
-                    const rawReason = data.amountReason ? data.amountReason.toString() : "";
-                    const { text, changed } = await convertReasonToBritishEnglish(rawReason);
-                    const updates = {
-                        amountReasonNormalized: changed ? "converted" : "original"
-                    };
-
-                    if (changed) {
-                        updates.amountReason = text;
-                    }
-
-                    updates.amountReasonNormalizedAt = serverTimestamp();
-                    await updateDoc(docSnapshot.ref, updates);
-                } catch (error) {
-                    console.error(`Failed to normalize reason for document ${docId}:`, error);
-                } finally {
-                    pendingReasonNormalizations.delete(docId);
-                }
-            })();
-        });
-    };
-
     const setEntryLoadingState = (isLoading, message = "") => {
         if (!entryLoadingIndicator) {
             return;
@@ -1749,7 +1693,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 setEntryLoadingState(false);
                 latestEntryDocs = snapshot.docs;
                 renderEntries(latestEntryDocs);
-                normalizeReasonFieldsForDocs(latestEntryDocs);
                 if (editingDocId) {
                     const stillExists = latestEntryDocs.some((docSnapshot) => docSnapshot.id === editingDocId);
                     if (!stillExists) {
@@ -2210,6 +2153,35 @@ document.addEventListener("DOMContentLoaded", () => {
         updateConditionalFields();
     }
 
+    if (reasonConvertButton && reasonInput) {
+        reasonConvertButton.addEventListener("click", async () => {
+            const currentText = reasonInput.value ? reasonInput.value.toString() : "";
+            if (!currentText.trim()) {
+                setEntryStatus("Add some text before converting.", "info");
+                return;
+            }
+
+            reasonConvertButton.disabled = true;
+            reasonConvertButton.setAttribute("aria-busy", "true");
+            setEntryStatus("Converting reason to British English…", "info", { persist: true });
+
+            try {
+                const conversion = await convertReasonToBritishEnglish(currentText);
+                reasonInput.value = conversion.text;
+                setEntryStatus(
+                    conversion.changed ? "Reason converted to British English." : "Reason already reads well in British English.",
+                    conversion.changed ? "success" : "info"
+                );
+            } catch (error) {
+                console.error("Error converting reason:", error);
+                setEntryStatus("Unable to convert reason. Please try again.", "error", { persist: true });
+            } finally {
+                reasonConvertButton.disabled = false;
+                reasonConvertButton.removeAttribute("aria-busy");
+            }
+        });
+    }
+
     if (entryForm) {
         entryForm.addEventListener("submit", async (event) => {
             event.preventDefault();
@@ -2231,18 +2203,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (entrySubmitButton) {
                 entrySubmitButton.disabled = true;
                 entrySubmitButton.setAttribute("aria-busy", "true");
-            }
-
-            if (payload.amountReason) {
-                setEntryStatus("Converting reason to British English…", "info", { persist: true });
-                const conversion = await convertReasonToBritishEnglish(payload.amountReason);
-                payload.amountReason = conversion.text;
-                payload.amountReasonNormalized = conversion.changed ? "converted" : "original";
-                if (conversion.changed && reasonInput) {
-                    reasonInput.value = conversion.text;
-                }
-            } else if (!payload.amountReasonNormalized) {
-                payload.amountReasonNormalized = "none";
             }
 
             setEntryStatus(isEditing ? "Updating entry…" : "Saving entry…", "info", { persist: true });
