@@ -576,6 +576,41 @@ document.addEventListener("DOMContentLoaded", () => {
         return Number.isNaN(millis) ? null : millis;
     };
 
+    const parseIsoDate = (value) => {
+        const millis = parseIsoDateToMillis(value);
+        return millis !== null ? new Date(millis) : null;
+    };
+
+    const getMonthIndexByName = (value) => {
+        if (!value) {
+            return -1;
+        }
+
+        const normalized = value.toString().trim().toLowerCase();
+        if (!normalized) {
+            return -1;
+        }
+
+        return monthNames.findIndex((name) => name.toLowerCase() === normalized);
+    };
+
+    const evaluatePaymentWindowStatus = (monthName, paymentDate) => {
+        const monthIndex = getMonthIndexByName(monthName);
+        if (monthIndex < 0 || !(paymentDate instanceof Date) || Number.isNaN(paymentDate.getTime())) {
+            return "late";
+        }
+
+        const windowYear = paymentDate.getFullYear();
+        const windowStart = new Date(windowYear, monthIndex + 1, 1, 0, 0, 0, 0);
+        const windowEnd = new Date(windowYear, monthIndex + 1, 6, 23, 59, 59, 999);
+
+        if (paymentDate <= windowEnd) {
+            return "onTime";
+        }
+
+        return "late";
+    };
+
     const parseIsoDateToYear = (value) => {
         if (!value || typeof value !== "string") {
             return null;
@@ -675,26 +710,39 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (!documents.length) {
-            overviewPunctualitySection.setAttribute("hidden", "");
-            if (overviewPunctualEmpty) {
-                overviewPunctualEmpty.removeAttribute("hidden");
-            }
-            if (overviewNonPunctualEmpty) {
-                overviewNonPunctualEmpty.removeAttribute("hidden");
-            }
+        const hasDocuments = documents.length > 0;
+        overviewPunctualitySection.toggleAttribute("hidden", !hasDocuments);
+
+        if (!hasDocuments) {
             if (overviewPunctualList) {
                 overviewPunctualList.innerHTML = "";
             }
             if (overviewNonPunctualList) {
                 overviewNonPunctualList.innerHTML = "";
             }
+            if (overviewPunctualEmpty) {
+                overviewPunctualEmpty.removeAttribute("hidden");
+            }
+            if (overviewNonPunctualEmpty) {
+                overviewNonPunctualEmpty.removeAttribute("hidden");
+            }
             return;
         }
 
-        overviewPunctualitySection.removeAttribute("hidden");
+        const householdStats = new Map();
 
-        const monthBuckets = new Map();
+        const ensureStat = (name) => {
+            if (!householdStats.has(name)) {
+                householdStats.set(name, {
+                    name,
+                    total: 0,
+                    onTime: 0,
+                    late: 0,
+                    latestLateMillis: null
+                });
+            }
+            return householdStats.get(name);
+        };
 
         documents.forEach((docSnapshot) => {
             const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
@@ -702,89 +750,50 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const monthKeyRaw = (data.month || "").toString().trim();
-            const normalizedMonthKey = monthKeyRaw.toLowerCase();
             const householdName = getHouseholdNameFromData(data);
-            const paymentMillis = parseIsoDateToMillis(data.paymentDate);
-
-            if (!normalizedMonthKey || !householdName || paymentMillis === null) {
+            if (!householdName) {
                 return;
             }
 
-            if (!monthBuckets.has(normalizedMonthKey)) {
-                monthBuckets.set(normalizedMonthKey, []);
-            }
+            const paymentDate = parseIsoDate(data.paymentDate);
+            const status = evaluatePaymentWindowStatus(data.month, paymentDate);
+            const stat = ensureStat(householdName);
 
-            monthBuckets.get(normalizedMonthKey).push({
-                docSnapshot,
-                householdName,
-                paymentMillis
-            });
-        });
-
-        const householdScores = new Map();
-
-        const ensureHouseholdScore = (name) => {
-            if (!householdScores.has(name)) {
-                householdScores.set(name, {
-                    name,
-                    earlyCount: 0,
-                    lateCount: 0
-                });
-            }
-            return householdScores.get(name);
-        };
-
-        monthBuckets.forEach((entries) => {
-            if (!entries.length) {
-                return;
-            }
-
-            entries.sort((a, b) => a.paymentMillis - b.paymentMillis);
-
-            const earliestMillis = entries[0].paymentMillis;
-            const latestMillis = entries[entries.length - 1].paymentMillis;
-
-            entries
-                .filter((entry) => entry.paymentMillis === earliestMillis)
-                .forEach((entry) => {
-                    const score = ensureHouseholdScore(entry.householdName);
-                    score.earlyCount += 1;
-                });
-
-            if (entries.length > 1) {
-                entries
-                    .filter((entry) => entry.paymentMillis === latestMillis)
-                    .forEach((entry) => {
-                        const score = ensureHouseholdScore(entry.householdName);
-                        score.lateCount += 1;
-                    });
-            }
-        });
-
-        const allScores = Array.from(householdScores.values());
-
-        const punctualTop = allScores
-            .filter((score) => score.earlyCount > 0)
-            .sort((a, b) => {
-                if (b.earlyCount !== a.earlyCount) {
-                    return b.earlyCount - a.earlyCount;
+            stat.total += 1;
+            if (status === "onTime") {
+                stat.onTime += 1;
+            } else {
+                stat.late += 1;
+                const millis = paymentDate instanceof Date && !Number.isNaN(paymentDate.getTime()) ? paymentDate.getTime() : null;
+                if (millis !== null) {
+                    stat.latestLateMillis = stat.latestLateMillis === null ? millis : Math.max(stat.latestLateMillis, millis);
                 }
-                if (a.lateCount !== b.lateCount) {
-                    return a.lateCount - b.lateCount;
+            }
+        });
+
+        const stats = Array.from(householdStats.values());
+
+        const alwaysOnTime = stats
+            .filter((entry) => entry.total > 0 && entry.late === 0 && entry.onTime > 0)
+            .sort((a, b) => {
+                if (b.onTime !== a.onTime) {
+                    return b.onTime - a.onTime;
+                }
+                if (b.total !== a.total) {
+                    return b.total - a.total;
                 }
                 return a.name.localeCompare(b.name);
             })
-            .slice(0, 5);
+            .slice(0, 3);
 
-        const nonPunctualTop = allScores
-            .filter((score) => score.lateCount > 0)
+        const alwaysLate = stats
+            .filter((entry) => entry.late > 0 && entry.onTime === 0)
             .sort((a, b) => {
-                if (b.lateCount !== a.lateCount) {
-                    return b.lateCount - a.lateCount;
+                if (b.late !== a.late) {
+                    return b.late - a.late;
                 }
-                if (a.earlyCount !== b.earlyCount) {
-                    return a.earlyCount - b.earlyCount;
+                if ((b.latestLateMillis || 0) !== (a.latestLateMillis || 0)) {
+                    return (b.latestLateMillis || 0) - (a.latestLateMillis || 0);
                 }
                 return a.name.localeCompare(b.name);
             })
@@ -793,15 +802,15 @@ document.addEventListener("DOMContentLoaded", () => {
         renderPunctualityList(
             overviewPunctualList,
             overviewPunctualEmpty,
-            punctualTop,
-            (entry) => `${entry.name} <span class="punctuality-card__badge">${entry.earlyCount} month${entry.earlyCount === 1 ? "" : "s"} early</span>`
+            alwaysOnTime,
+            (entry) => `${entry.name} <span class="punctuality-card__badge">${entry.onTime} cycle${entry.onTime === 1 ? "" : "s"} on time</span>`
         );
 
         renderPunctualityList(
             overviewNonPunctualList,
             overviewNonPunctualEmpty,
-            nonPunctualTop,
-            (entry) => `${entry.name} <span class="punctuality-card__badge">${entry.lateCount} month${entry.lateCount === 1 ? "" : "s"} late</span>`
+            alwaysLate,
+            (entry) => `${entry.name} <span class="punctuality-card__badge">${entry.late} late cycle${entry.late === 1 ? "" : "s"}</span>`
         );
     };
 

@@ -67,6 +67,24 @@
                                         <p class="overview-chart__empty" data-overview-payment-empty hidden>No payment data yet.</p>
                                         <ul class="overview-chart__legend" data-overview-payment-legend></ul>
                                     </div>
+                                    <div class="overview-punctuality" data-overview-punctuality hidden>
+                                        <article class="punctuality-card" aria-labelledby="overview-always-on-time">
+                                            <header class="punctuality-card__header">
+                                                <h4 class="punctuality-card__title" id="overview-always-on-time">Always on Time</h4>
+                                                <p class="punctuality-card__subtitle">Households paying between 1st and 6th every cycle</p>
+                                            </header>
+                                            <ul class="punctuality-card__list" data-overview-punctual-list></ul>
+                                            <p class="punctuality-card__empty" data-overview-punctual-empty>No household qualifies yet.</p>
+                                        </article>
+                                        <article class="punctuality-card" aria-labelledby="overview-always-late">
+                                            <header class="punctuality-card__header">
+                                                <h4 class="punctuality-card__title" id="overview-always-late">Always Late</h4>
+                                                <p class="punctuality-card__subtitle">Households that miss the 1st–6th window</p>
+                                            </header>
+                                            <ul class="punctuality-card__list" data-overview-nonpunctual-list></ul>
+                                            <p class="punctuality-card__empty" data-overview-nonpunctual-empty>No late households recorded.</p>
+                                        </article>
+                                    </div>
                                 </div>
                             </section>
                             <div class="dashboard-card__header">
