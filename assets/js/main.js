@@ -59,7 +59,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const extraAmountWrapper = document.querySelector("[data-extra-amount-wrapper]");
     const extraAmountValueInput = document.getElementById("extra-amount-value");
     const reasonField = document.querySelector("[data-reason-field]");
-    const reasonInput = document.getElementById("amount-reason");
+    const reasonSelect = document.getElementById("amount-reason");
+    const reasonOtherWrapper = document.querySelector("[data-reason-other-wrapper]");
+    const reasonOtherInput = document.getElementById("amount-reason-other");
     const gasWrapper = document.querySelector("[data-gas-wrapper]");
     const gasAmountInput = document.getElementById("gas-amount");
     const householdSelect = document.getElementById("household-name");
@@ -121,8 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "December"
     ];
     const instagramLink = document.querySelector("[data-instagram-link]");
-    const reasonConvertButton = document.querySelector("[data-reason-convert]");
-    const romanToBritishApiKey = "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";
 
     const getCssVariableValue = (name, fallback = "") => {
         try {
@@ -138,56 +138,6 @@ document.addEventListener("DOMContentLoaded", () => {
         { key: "cash", label: "Cash", color: getCssVariableValue("--brand-sand", "#c0aa83") },
         { key: "none", label: "None", color: "#6c757d" }
     ];
-
-    const convertReasonToBritishEnglish = async (text) => {
-        const trimmed = typeof text === "string" ? text.trim() : "";
-        if (!trimmed) {
-            return { text: "", changed: false };
-        }
-
-        if (!romanToBritishApiKey) {
-            return { text: trimmed, changed: false };
-        }
-
-        try {
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${romanToBritishApiKey}`,
-                    "X-Title": "Masjid Noor Dashboard"
-                },
-                body: JSON.stringify({
-                    model: "openai/gpt-4o-mini",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You translate any Roman Urdu or informal English input into clear, natural British English. Preserve the intent, be concise, and respond only with the revised text."
-                        },
-                        {
-                            role: "user",
-                            content: trimmed
-                        }
-                    ],
-                    temperature: 0.1,
-                    max_tokens: 160
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Roman to British conversion failed with status ${response.status}`);
-            }
-
-            const data = await response.json();
-            const converted = data?.choices?.[0]?.message?.content;
-            const normalized = typeof converted === "string" ? converted.trim() : "";
-            const resultText = normalized || trimmed;
-            return { text: resultText, changed: resultText !== trimmed };
-        } catch (error) {
-            console.error("Unable to convert reason text:", error);
-            return { text: trimmed, changed: false };
-        }
-    };
 
     const uniqueHouseholdsList = (() => {
         if (!householdSelect) {
@@ -1266,8 +1216,21 @@ document.addEventListener("DOMContentLoaded", () => {
             gasAmountInput.value = gasAmountNumber !== null ? gasAmountNumber : "";
         }
 
-        if (reasonInput) {
-            reasonInput.value = data.amountReason ? data.amountReason.toString().trim() : "";
+        if (reasonSelect) {
+            const reasonValue = data.amountReason ? data.amountReason.toString().trim() : "";
+            let selectedValue = "";
+
+            if (reasonValue) {
+                const options = Array.from(reasonSelect.options || []);
+                const match = options.find((option) => option.value === reasonValue);
+                selectedValue = match ? match.value : "other";
+            }
+
+            reasonSelect.value = selectedValue;
+
+            if (reasonOtherInput) {
+                reasonOtherInput.value = selectedValue === "other" ? reasonValue : "";
+            }
         }
 
         updateConditionalFields();
@@ -1611,6 +1574,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const extrasFlag = formData.get("extra-amount");
         const gasFlag = formData.get("gas-refill");
 
+        const selectedReason = (formData.get("amount-reason") || "").toString();
+        const resolvedReason = selectedReason === "other"
+            ? (formData.get("amount-reason-other") || "").toString().trim()
+            : selectedReason.toString().trim();
+
         const payload = {
             month: (formData.get("month") || "").toString(),
             householdName: (formData.get("household-name") || "").toString(),
@@ -1622,7 +1590,7 @@ document.addEventListener("DOMContentLoaded", () => {
             riceCollected: toBoolean(formData.get("rice-collected")),
             gasRefill: toBoolean(gasFlag),
             gasAmount: toBoolean(gasFlag) ? toNumberOrNull(formData.get("gas-amount")) : null,
-            amountReason: (formData.get("amount-reason") || "").toString().trim()
+            amountReason: resolvedReason
         };
 
         if (includeCreatedAt) {
@@ -2066,10 +2034,27 @@ document.addEventListener("DOMContentLoaded", () => {
         const extraNeedsReason = extraAmountValue === "yes";
         const gasValue = document.getElementById("gas-refill") ? document.getElementById("gas-refill").value : "no";
 
-        if (reasonField && reasonInput) {
+        if (reasonField && reasonSelect) {
             const showReason = salaryNeedsReason || extraNeedsReason;
             reasonField.classList.toggle("is-hidden", !showReason);
-            reasonInput.required = showReason;
+            reasonSelect.required = showReason;
+
+            if (!showReason) {
+                reasonSelect.value = "";
+                if (reasonOtherInput) {
+                    reasonOtherInput.value = "";
+                }
+            }
+        }
+
+        if (reasonSelect && reasonOtherWrapper && reasonOtherInput) {
+            const reasonVisible = !reasonField || !reasonField.classList.contains("is-hidden");
+            const requireOther = reasonVisible && reasonSelect.value === "other";
+            reasonOtherWrapper.classList.toggle("is-hidden", !requireOther);
+            reasonOtherInput.required = requireOther;
+            if (!requireOther) {
+                reasonOtherInput.value = "";
+            }
         }
 
         if (extraAmountWrapper && extraAmountValueInput) {
@@ -2153,33 +2138,8 @@ document.addEventListener("DOMContentLoaded", () => {
         updateConditionalFields();
     }
 
-    if (reasonConvertButton && reasonInput) {
-        reasonConvertButton.addEventListener("click", async () => {
-            const currentText = reasonInput.value ? reasonInput.value.toString() : "";
-            if (!currentText.trim()) {
-                setEntryStatus("Add some text before converting.", "info");
-                return;
-            }
-
-            reasonConvertButton.disabled = true;
-            reasonConvertButton.setAttribute("aria-busy", "true");
-            setEntryStatus("Converting reason to British English…", "info", { persist: true });
-
-            try {
-                const conversion = await convertReasonToBritishEnglish(currentText);
-                reasonInput.value = conversion.text;
-                setEntryStatus(
-                    conversion.changed ? "Reason converted to British English." : "Reason already reads well in British English.",
-                    conversion.changed ? "success" : "info"
-                );
-            } catch (error) {
-                console.error("Error converting reason:", error);
-                setEntryStatus("Unable to convert reason. Please try again.", "error", { persist: true });
-            } finally {
-                reasonConvertButton.disabled = false;
-                reasonConvertButton.removeAttribute("aria-busy");
-            }
-        });
+    if (reasonSelect) {
+        reasonSelect.addEventListener("change", updateConditionalFields);
     }
 
     if (entryForm) {
