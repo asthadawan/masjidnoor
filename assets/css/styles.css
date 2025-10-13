@@ -30,44 +30,46 @@ body {
         radial-gradient(circle at bottom left, rgba(0, 100, 0, 0.22), transparent 60%),
         var(--brand-soft-white);
     background-size: cover;
+    padding-bottom: 4rem;
 }
 
-.floating-footer {
+.site-footer {
     position: fixed;
-    inset-block-end: 1rem;
-    inset-inline: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.78);
+    inset-inline: 0;
+    inset-block-end: 0;
+    background: rgba(0, 0, 0, 0.82);
     color: #ffffff;
-    padding: 0.6rem 1.2rem;
-    border-radius: 999px;
-    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.45);
-    font-size: 0.9rem;
-    letter-spacing: 0.015em;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
+    padding: 0.75rem 1rem;
+    text-align: center;
     z-index: 1000;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(6px);
 }
 
-.floating-footer__link {
-    color: #d5f5d3;
+.site-footer__link {
+    color: #e3ffd9;
     text-decoration: none;
     font-weight: 600;
+    letter-spacing: 0.03em;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
 }
 
-.floating-footer__link:hover,
-.floating-footer__link:focus-visible {
+.site-footer__link:hover,
+.site-footer__link:focus-visible {
     text-decoration: underline;
 }
 
 @media (max-width: 640px) {
-    .floating-footer {
-        inset-block-end: 0.75rem;
-        inset-inline: 0.75rem;
-        transform: none;
-        border-radius: 0.75rem;
-        padding: 0.65rem 0.85rem;
+    body {
+        padding-bottom: 4.5rem;
+    }
+
+    .site-footer {
+        padding: 0.85rem 0.9rem;
+        font-size: 0.95rem;
     }
 }
 
