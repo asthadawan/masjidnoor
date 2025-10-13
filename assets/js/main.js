@@ -933,6 +933,29 @@ document.addEventListener("DOMContentLoaded", () => {
         return { width, height };
     };
 
+    const adjustHexColor = (color, amount) => {
+        if (!color || typeof color !== "string") {
+            return color;
+        }
+
+        const hex = color.trim().replace(/^#/, "");
+        if (!/^([a-fA-F0-9]{6})$/.test(hex)) {
+            return color;
+        }
+
+        const num = parseInt(hex, 16);
+        let r = (num >> 16) & 0xff;
+        let g = (num >> 8) & 0xff;
+        let b = num & 0xff;
+
+        r = Math.min(255, Math.max(0, r + amount));
+        g = Math.min(255, Math.max(0, g + amount));
+        b = Math.min(255, Math.max(0, b + amount));
+
+        const toHex = (value) => value.toString(16).padStart(2, "0");
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    };
+
     const updatePaymentLegend = (counts, total) => {
         if (!overviewPaymentLegend) {
             return;
@@ -992,6 +1015,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const radius = Math.min(width, height) / 2 - 6;
         const centerX = width / 2;
         const centerY = height / 2;
+        const depth = Math.max(6, Math.round(radius * 0.2));
         let startAngle = -Math.PI / 2;
 
         paymentModeMeta.forEach((mode) => {
@@ -1001,12 +1025,36 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const sliceAngle = (value / total) * Math.PI * 2;
+            const endAngle = startAngle + sliceAngle;
+            const sideColor = adjustHexColor(mode.color, -40);
+
+            for (let layer = depth; layer > 0; layer -= 1) {
+                const offsetY = layer;
+                const layerShade = adjustHexColor(mode.color, -10 - layer);
+                context.beginPath();
+                context.moveTo(centerX, centerY + offsetY);
+                context.arc(centerX, centerY + offsetY, radius, startAngle, endAngle);
+                context.closePath();
+                context.fillStyle = layerShade;
+                context.fill();
+            }
+
             context.beginPath();
             context.moveTo(centerX, centerY);
-            context.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+            context.arc(centerX, centerY, radius, startAngle, endAngle);
             context.closePath();
             context.fillStyle = mode.color;
             context.fill();
+
+            context.beginPath();
+            context.moveTo(centerX, centerY + depth);
+            context.arc(centerX, centerY + depth, radius, startAngle, endAngle);
+            context.closePath();
+            context.fillStyle = sideColor;
+            context.globalAlpha = 0.5;
+            context.fill();
+            context.globalAlpha = 1;
+
             startAngle += sliceAngle;
         });
 
