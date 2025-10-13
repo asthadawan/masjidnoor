@@ -141,11 +141,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const convertReasonToBritishEnglish = async (text) => {
         const trimmed = typeof text === "string" ? text.trim() : "";
         if (!trimmed) {
-            return "";
+            return { text: "", changed: false };
         }
 
         if (!romanToBritishApiKey) {
-            return trimmed;
+            return { text: trimmed, changed: false };
         }
 
         try {
@@ -161,15 +161,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     messages: [
                         {
                             role: "system",
-                            content: "You are a helpful assistant who rewrites Roman English input into natural British English. Keep the meaning intact and reply with only the rewritten sentence."
+                            content: "You translate any Roman Urdu or informal English input into clear, natural British English. Preserve the intent, be concise, and respond only with the revised text."
                         },
                         {
                             role: "user",
                             content: trimmed
                         }
                     ],
-                    temperature: 0.2,
-                    max_tokens: 150
+                    temperature: 0.1,
+                    max_tokens: 160
                 })
             });
 
@@ -179,10 +179,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             const converted = data?.choices?.[0]?.message?.content;
-            return typeof converted === "string" && converted.trim() ? converted.trim() : trimmed;
+            const normalized = typeof converted === "string" ? converted.trim() : "";
+            const resultText = normalized || trimmed;
+            return { text: resultText, changed: resultText !== trimmed };
         } catch (error) {
             console.error("Unable to convert reason text:", error);
-            return trimmed;
+            return { text: trimmed, changed: false };
         }
     };
 
@@ -258,6 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const toggleGroupControllers = [];
     let entriesUnsubscribe = null;
     let entryStatusTimeoutId = null;
+    const pendingReasonNormalizations = new Set();
 
     if (menuToggle && navigation) {
         menuToggle.addEventListener("click", () => {
@@ -1418,6 +1421,62 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
+    const normalizeReasonFieldsForDocs = (docSnapshots) => {
+        if (!Array.isArray(docSnapshots) || !docSnapshots.length) {
+            return;
+        }
+
+        const candidates = docSnapshots.filter((docSnapshot) => {
+            if (!docSnapshot || typeof docSnapshot.data !== "function") {
+                return false;
+            }
+
+            const data = docSnapshot.data();
+            const rawReason = data && data.amountReason ? data.amountReason.toString().trim() : "";
+            if (!rawReason) {
+                return false;
+            }
+
+            const normalisedState = data.amountReasonNormalized || data.amountReasonNormalised;
+            if (normalisedState === "converted" || normalisedState === "original") {
+                return false;
+            }
+
+            return !pendingReasonNormalizations.has(docSnapshot.id);
+        });
+
+        if (!candidates.length) {
+            return;
+        }
+
+        candidates.forEach((docSnapshot) => {
+            const docId = docSnapshot.id;
+            pendingReasonNormalizations.add(docId);
+
+            (async () => {
+                try {
+                    const data = docSnapshot.data();
+                    const rawReason = data.amountReason ? data.amountReason.toString() : "";
+                    const { text, changed } = await convertReasonToBritishEnglish(rawReason);
+                    const updates = {
+                        amountReasonNormalized: changed ? "converted" : "original"
+                    };
+
+                    if (changed) {
+                        updates.amountReason = text;
+                    }
+
+                    updates.amountReasonNormalizedAt = serverTimestamp();
+                    await updateDoc(docSnapshot.ref, updates);
+                } catch (error) {
+                    console.error(`Failed to normalize reason for document ${docId}:`, error);
+                } finally {
+                    pendingReasonNormalizations.delete(docId);
+                }
+            })();
+        });
+    };
+
     const setEntryLoadingState = (isLoading, message = "") => {
         if (!entryLoadingIndicator) {
             return;
@@ -1690,6 +1749,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 setEntryLoadingState(false);
                 latestEntryDocs = snapshot.docs;
                 renderEntries(latestEntryDocs);
+                normalizeReasonFieldsForDocs(latestEntryDocs);
                 if (editingDocId) {
                     const stillExists = latestEntryDocs.some((docSnapshot) => docSnapshot.id === editingDocId);
                     if (!stillExists) {
@@ -2175,7 +2235,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (payload.amountReason) {
                 setEntryStatus("Converting reason to British English…", "info", { persist: true });
-                payload.amountReason = await convertReasonToBritishEnglish(payload.amountReason);
+                const conversion = await convertReasonToBritishEnglish(payload.amountReason);
+                payload.amountReason = conversion.text;
+                payload.amountReasonNormalized = conversion.changed ? "converted" : "original";
+                if (conversion.changed && reasonInput) {
+                    reasonInput.value = conversion.text;
+                }
+            } else if (!payload.amountReasonNormalized) {
+                payload.amountReasonNormalized = "none";
             }
 
             setEntryStatus(isEditing ? "Updating entry…" : "Saving entry…", "info", { persist: true });
