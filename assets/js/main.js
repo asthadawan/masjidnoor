@@ -1929,6 +1929,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const originalTop = container.style.top;
                 const originalWidth = container.style.width;
                 const originalVisibility = container.style.visibility;
+                const originalMaxWidth = container.style.maxWidth;
                 const hadPrintClass = container.classList.contains('print-sheet--visible');
                 
                 // Add class to apply print styles
@@ -1938,20 +1939,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 container.style.position = 'fixed';
                 container.style.left = '0';
                 container.style.top = '0';
-                container.style.width = '100%';
+                container.style.width = '210mm';  // A4 width
+                container.style.maxWidth = '210mm';
                 container.style.visibility = 'hidden';
                 container.style.zIndex = '-9999';
                 container.style.overflow = 'visible';
+                container.style.padding = '2.4rem 2rem';
+                container.style.backgroundColor = '#ffffff';
+                container.style.color = '#000000';
+                
+                // Wait for fonts to load
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
                 
                 // Wait for render and fonts to load
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Generate PDF from the print sheet content
                 const canvas = await html2canvas(container, {
-                    scale: window.devicePixelRatio || 1,
+                    scale: 2,
                     useCORS: true,
                     allowTaint: true,
-                    logging: false,
+                    logging: true,
                     backgroundColor: '#ffffff',
                     width: container.offsetWidth,
                     height: container.offsetHeight,
@@ -1973,9 +1983,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 container.style.left = originalLeft;
                 container.style.top = originalTop;
                 container.style.width = originalWidth;
+                container.style.maxWidth = originalMaxWidth;
                 container.style.visibility = originalVisibility;
                 container.style.zIndex = '';
                 container.style.overflow = '';
+                container.style.padding = '';
+                container.style.backgroundColor = '';
+                container.style.color = '';
 
                 if (!canvas || canvas.width === 0 || canvas.height === 0) {
                     throw new Error('Canvas rendering failed - content may not be visible');
