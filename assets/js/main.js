@@ -1923,73 +1923,67 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Temporarily make container visible for html2canvas
                 const wasHidden = container.hasAttribute('hidden');
-                const originalDisplay = container.style.display;
-                const originalPosition = container.style.position;
-                const originalLeft = container.style.left;
-                const originalTop = container.style.top;
-                const originalWidth = container.style.width;
-                const originalVisibility = container.style.visibility;
-                const originalMaxWidth = container.style.maxWidth;
                 const hadPrintClass = container.classList.contains('print-sheet--visible');
                 
-                // Add class to apply print styles
+                // Store original styles
+                const originalStyles = {
+                    display: container.style.display,
+                    position: container.style.position,
+                    left: container.style.left,
+                    top: container.style.top,
+                    width: container.style.width,
+                    maxWidth: container.style.maxWidth,
+                    zIndex: container.style.zIndex,
+                    opacity: container.style.opacity
+                };
+                
+                // Add class and make visible for capture
                 container.classList.add('print-sheet--visible');
                 container.removeAttribute('hidden');
                 container.style.display = 'block';
-                container.style.position = 'fixed';
-                container.style.left = '0';
+                container.style.position = 'absolute';
+                container.style.left = '-99999px';
                 container.style.top = '0';
-                container.style.width = '210mm';  // A4 width
-                container.style.maxWidth = '210mm';
-                container.style.visibility = 'hidden';
-                container.style.zIndex = '-9999';
-                container.style.overflow = 'visible';
-                container.style.padding = '2.4rem 2rem';
-                container.style.backgroundColor = '#ffffff';
-                container.style.color = '#000000';
+                container.style.width = 'auto';
+                container.style.maxWidth = '800px';
+                container.style.zIndex = '-1';
+                container.style.opacity = '1';
+                
+                // Force reflow
+                void container.offsetHeight;
                 
                 // Wait for fonts to load
                 if (document.fonts && document.fonts.ready) {
                     await document.fonts.ready;
                 }
                 
-                // Wait for render and fonts to load
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Additional wait for rendering
+                await new Promise(resolve => requestAnimationFrame(() => {
+                    requestAnimationFrame(resolve);
+                }));
+                await new Promise(resolve => setTimeout(resolve, 300));
 
                 // Generate PDF from the print sheet content
                 const canvas = await html2canvas(container, {
                     scale: 2,
                     useCORS: true,
                     allowTaint: true,
-                    logging: true,
-                    backgroundColor: '#ffffff',
-                    width: container.offsetWidth,
-                    height: container.offsetHeight,
-                    scrollX: 0,
-                    scrollY: 0,
-                    windowWidth: container.offsetWidth,
-                    windowHeight: container.offsetHeight
+                    logging: false,
+                    backgroundColor: '#ffffff'
                 });
 
-                // Restore container visibility
+                // Restore container state
                 if (!hadPrintClass) {
                     container.classList.remove('print-sheet--visible');
                 }
                 if (wasHidden) {
                     container.setAttribute('hidden', '');
                 }
-                container.style.display = originalDisplay;
-                container.style.position = originalPosition;
-                container.style.left = originalLeft;
-                container.style.top = originalTop;
-                container.style.width = originalWidth;
-                container.style.maxWidth = originalMaxWidth;
-                container.style.visibility = originalVisibility;
-                container.style.zIndex = '';
-                container.style.overflow = '';
-                container.style.padding = '';
-                container.style.backgroundColor = '';
-                container.style.color = '';
+                
+                // Restore all original styles
+                Object.keys(originalStyles).forEach(key => {
+                    container.style[key] = originalStyles[key];
+                });
 
                 if (!canvas || canvas.width === 0 || canvas.height === 0) {
                     throw new Error('Canvas rendering failed - content may not be visible');
