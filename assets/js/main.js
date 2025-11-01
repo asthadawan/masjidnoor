@@ -1923,24 +1923,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Temporarily make container visible for html2canvas
                 const wasHidden = container.hasAttribute('hidden');
                 const originalDisplay = container.style.display;
+                const originalPosition = container.style.position;
+                const originalLeft = container.style.left;
+                const originalTop = container.style.top;
+                const originalWidth = container.style.width;
+                const originalVisibility = container.style.visibility;
                 
                 container.removeAttribute('hidden');
                 container.style.display = 'block';
-                container.style.position = 'absolute';
-                container.style.left = '-9999px';
+                container.style.position = 'fixed';
+                container.style.left = '0';
                 container.style.top = '0';
+                container.style.width = '100%';
+                container.style.visibility = 'hidden';
+                container.style.zIndex = '-9999';
+                container.style.overflow = 'visible';
                 
-                // Wait for render
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Wait for render and fonts to load
+                await new Promise(resolve => setTimeout(resolve, 300));
 
                 // Generate PDF from the print sheet content
                 const canvas = await html2canvas(container, {
-                    scale: 2,
+                    scale: window.devicePixelRatio || 1,
                     useCORS: true,
+                    allowTaint: true,
                     logging: false,
                     backgroundColor: '#ffffff',
-                    width: container.scrollWidth,
-                    height: container.scrollHeight
+                    width: container.offsetWidth,
+                    height: container.offsetHeight,
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: container.offsetWidth,
+                    windowHeight: container.offsetHeight
                 });
 
                 // Restore container visibility
@@ -1948,11 +1962,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     container.setAttribute('hidden', '');
                 }
                 container.style.display = originalDisplay;
-                container.style.position = '';
-                container.style.left = '';
-                container.style.top = '';
+                container.style.position = originalPosition;
+                container.style.left = originalLeft;
+                container.style.top = originalTop;
+                container.style.width = originalWidth;
+                container.style.visibility = originalVisibility;
+                container.style.zIndex = '';
+                container.style.overflow = '';
+
+                if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                    throw new Error('Canvas rendering failed - content may not be visible');
+                }
 
                 const imgData = canvas.toDataURL('image/png');
+                
+                if (!imgData || imgData === 'data:,') {
+                    throw new Error('Failed to generate image from canvas');
+                }
+
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({
                     orientation: 'portrait',
