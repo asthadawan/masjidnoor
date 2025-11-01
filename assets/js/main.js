@@ -1909,12 +1909,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 entryShareButton.disabled = true;
                 entryShareButton.textContent = 'Generating PDF...';
 
+                // Wait for libraries to be loaded
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Check if libraries are loaded
+                if (typeof html2canvas === 'undefined') {
+                    throw new Error('html2canvas library not loaded');
+                }
+                if (typeof window.jspdf === 'undefined') {
+                    throw new Error('jsPDF library not loaded');
+                }
+
                 // Generate PDF from the print sheet content
                 const canvas = await html2canvas(container, {
                     scale: 2,
                     useCORS: true,
                     logging: false,
-                    backgroundColor: '#ffffff'
+                    backgroundColor: '#ffffff',
+                    windowWidth: container.scrollWidth,
+                    windowHeight: container.scrollHeight
                 });
 
                 const imgData = canvas.toDataURL('image/png');
@@ -1948,11 +1961,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Convert PDF to Blob
                 const pdfBlob = pdf.output('blob');
-                const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-                // Try to share using Web Share API
-                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                // Check if we can share files (mobile devices mostly)
+                let canShareFiles = false;
+                if (navigator.share && navigator.canShare) {
                     try {
+                        const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+                        canShareFiles = navigator.canShare({ files: [pdfFile] });
+                    } catch (e) {
+                        canShareFiles = false;
+                    }
+                }
+
+                if (canShareFiles) {
+                    // Mobile: Share PDF via native share sheet
+                    try {
+                        const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
                         await navigator.share({
                             files: [pdfFile],
                             title: 'Masjid Noor - Imam Salary Records',
@@ -1962,17 +1986,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (error.name !== 'AbortError') {
                             console.error('Error sharing:', error);
                             // Fallback to download
-                            downloadPDF(pdf, filename);
+                            pdf.save(filename);
                         }
                     }
                 } else {
-                    // Fallback: Download the PDF or show download option
+                    // Desktop: Show download/share options
                     showShareFallbackModal(pdf, filename, pdfBlob);
                 }
 
             } catch (error) {
                 console.error('Error generating PDF:', error);
-                alert('Failed to generate PDF. Please try again.');
+                alert(`Failed to generate PDF: ${error.message}. Please try again.`);
             } finally {
                 // Reset button state
                 entryShareButton.disabled = false;
