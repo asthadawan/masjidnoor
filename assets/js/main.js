@@ -1928,7 +1928,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const originalTop = container.style.top;
                 const originalWidth = container.style.width;
                 const originalVisibility = container.style.visibility;
+                const hadPrintClass = container.classList.contains('print-sheet--visible');
                 
+                // Add class to apply print styles
+                container.classList.add('print-sheet--visible');
                 container.removeAttribute('hidden');
                 container.style.display = 'block';
                 container.style.position = 'fixed';
@@ -1958,6 +1961,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 // Restore container visibility
+                if (!hadPrintClass) {
+                    container.classList.remove('print-sheet--visible');
+                }
                 if (wasHidden) {
                     container.setAttribute('hidden', '');
                 }
