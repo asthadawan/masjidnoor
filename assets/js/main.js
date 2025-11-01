@@ -1920,15 +1920,37 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error('jsPDF library not loaded');
                 }
 
+                // Temporarily make container visible for html2canvas
+                const wasHidden = container.hasAttribute('hidden');
+                const originalDisplay = container.style.display;
+                
+                container.removeAttribute('hidden');
+                container.style.display = 'block';
+                container.style.position = 'absolute';
+                container.style.left = '-9999px';
+                container.style.top = '0';
+                
+                // Wait for render
+                await new Promise(resolve => setTimeout(resolve, 100));
+
                 // Generate PDF from the print sheet content
                 const canvas = await html2canvas(container, {
                     scale: 2,
                     useCORS: true,
                     logging: false,
                     backgroundColor: '#ffffff',
-                    windowWidth: container.scrollWidth,
-                    windowHeight: container.scrollHeight
+                    width: container.scrollWidth,
+                    height: container.scrollHeight
                 });
+
+                // Restore container visibility
+                if (wasHidden) {
+                    container.setAttribute('hidden', '');
+                }
+                container.style.display = originalDisplay;
+                container.style.position = '';
+                container.style.left = '';
+                container.style.top = '';
 
                 const imgData = canvas.toDataURL('image/png');
                 const { jsPDF } = window.jspdf;
