@@ -1904,58 +1904,89 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Generate shareable text content
-            const monthLabel = getMonthFilterLabel();
-            const householdLabel = getHouseholdFilterLabel();
-            
-            const totals = latestFilteredDocs.reduce((acc, docSnapshot) => {
-                const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
-                if (!data) {
-                    return acc;
+            try {
+                // Show loading state
+                entryShareButton.disabled = true;
+                entryShareButton.textContent = 'Generating PDF...';
+
+                // Generate PDF from the print sheet content
+                const canvas = await html2canvas(container, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const imgWidth = 210; // A4 width in mm
+                const pageHeight = 297; // A4 height in mm
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
                 }
 
-                const salaryAmount = toNumberOrNull(data.salaryAmount) || 0;
-                const extraAmountValue = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) || 0 : 0;
-                const gasAmountValue = toBoolean(data.gasRefill) ? toNumberOrNull(data.gasAmount) || 0 : 0;
+                // Generate filename
+                const monthLabel = getMonthFilterLabel();
+                const householdLabel = getHouseholdFilterLabel();
+                const filename = `Masjid_Noor_Records_${monthLabel.replace(/\s+/g, '_')}_${householdLabel.replace(/\s+/g, '_')}.pdf`;
 
-                acc.salary += salaryAmount;
-                acc.extra += extraAmountValue;
-                acc.gas += gasAmountValue;
-                return acc;
-            }, { salary: 0, extra: 0, gas: 0 });
+                // Convert PDF to Blob
+                const pdfBlob = pdf.output('blob');
+                const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-            const totalAmount = totals.salary + totals.extra + totals.gas;
-
-            const shareText = `مسجد نور بٹھار کمیٹی - Imam Salary Records\n\nMonth: ${monthLabel}\nHousehold: ${householdLabel}\nRecords: ${latestFilteredDocs.length}\nTotal Amount: ${formatCurrencyInr(totalAmount)}\n\nView more at: https://www.masjidnoor.tech`;
-            const shareTitle = "Masjid Noor - Imam Salary Records";
-            const shareUrl = "https://www.masjidnoor.tech";
-
-            // Check if Web Share API is supported
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: shareTitle,
-                        text: shareText,
-                        url: shareUrl
-                    });
-                } catch (error) {
-                    // User cancelled or share failed
-                    if (error.name !== 'AbortError') {
-                        console.error('Error sharing:', error);
-                        fallbackShare(shareText, shareUrl);
+                // Try to share using Web Share API
+                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                    try {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: 'Masjid Noor - Imam Salary Records',
+                            text: `Records for ${monthLabel} - ${householdLabel}`
+                        });
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            console.error('Error sharing:', error);
+                            // Fallback to download
+                            downloadPDF(pdf, filename);
+                        }
                     }
+                } else {
+                    // Fallback: Download the PDF or show download option
+                    showShareFallbackModal(pdf, filename, pdfBlob);
                 }
-            } else {
-                // Fallback for browsers that don't support Web Share API
-                fallbackShare(shareText, shareUrl);
-            }
 
-            resetPrintSheetContainer();
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Failed to generate PDF. Please try again.');
+            } finally {
+                // Reset button state
+                entryShareButton.disabled = false;
+                entryShareButton.textContent = 'Share';
+                resetPrintSheetContainer();
+            }
         });
     }
 
-    const fallbackShare = (text, url) => {
-        // Create a modal-like share menu
+    const downloadPDF = (pdf, filename) => {
+        pdf.save(filename);
+    };
+
+    const showShareFallbackModal = (pdf, filename, pdfBlob) => {
         const existingModal = document.querySelector('.share-modal');
         if (existingModal) {
             existingModal.remove();
@@ -1965,51 +1996,52 @@ document.addEventListener("DOMContentLoaded", () => {
         modal.className = 'share-modal';
         modal.innerHTML = `
             <div class="share-modal__content">
-                <h3 class="share-modal__title">Share Report</h3>
-                <p class="share-modal__text">Choose how to share:</p>
+                <h3 class="share-modal__title">Share PDF Report</h3>
+                <p class="share-modal__text">Your PDF is ready! Choose an option:</p>
                 <div class="share-modal__buttons">
-                    <button class="share-modal__btn" data-share-action="whatsapp">
-                        <span>📱</span> WhatsApp
+                    <button class="share-modal__btn" data-share-action="download">
+                        <span>⬇️</span> Download PDF
                     </button>
-                    <button class="share-modal__btn" data-share-action="email">
-                        <span>✉️</span> Email
+                    <button class="share-modal__btn" data-share-action="whatsapp-web">
+                        <span>📱</span> WhatsApp Web
                     </button>
-                    <button class="share-modal__btn" data-share-action="copy">
-                        <span>📋</span> Copy Text
+                    <button class="share-modal__btn" data-share-action="email-pdf">
+                        <span>✉️</span> Email (Download First)
                     </button>
                 </div>
+                <p class="share-modal__note">Note: Download the PDF first, then share it through your preferred app.</p>
                 <button class="share-modal__close" data-share-action="close">Cancel</button>
             </div>
         `;
 
         document.body.appendChild(modal);
 
-        // Add event listeners
         modal.addEventListener('click', (e) => {
             const target = e.target.closest('[data-share-action]');
             if (!target) return;
 
             const action = target.getAttribute('data-share-action');
-            const encodedText = encodeURIComponent(text);
-            const encodedUrl = encodeURIComponent(url);
 
             switch (action) {
-                case 'whatsapp':
-                    window.open(`https://wa.me/?text=${encodedText}%0A${encodedUrl}`, '_blank');
+                case 'download':
+                    downloadPDF(pdf, filename);
+                    target.innerHTML = '<span>✓</span> Downloaded!';
+                    setTimeout(() => {
+                        target.innerHTML = '<span>⬇️</span> Download PDF';
+                    }, 2000);
+                    return;
+                case 'whatsapp-web':
+                    downloadPDF(pdf, filename);
+                    setTimeout(() => {
+                        window.open('https://web.whatsapp.com/', '_blank');
+                    }, 500);
                     break;
-                case 'email':
-                    window.location.href = `mailto:?subject=${encodeURIComponent('Masjid Noor - Imam Salary Records')}&body=${encodedText}%0A%0A${encodedUrl}`;
+                case 'email-pdf':
+                    downloadPDF(pdf, filename);
+                    setTimeout(() => {
+                        window.location.href = `mailto:?subject=${encodeURIComponent('Masjid Noor - Imam Salary Records')}&body=${encodeURIComponent('Please find the attached PDF report for Masjid Noor records.')}`;
+                    }, 500);
                     break;
-                case 'copy':
-                    navigator.clipboard.writeText(`${text}\n${url}`).then(() => {
-                        target.textContent = '✓ Copied!';
-                        setTimeout(() => {
-                            target.innerHTML = '<span>📋</span> Copy Text';
-                        }, 2000);
-                    }).catch(err => {
-                        console.error('Failed to copy:', err);
-                    });
-                    return; // Don't close modal immediately for copy action
                 case 'close':
                     break;
             }
@@ -2017,7 +2049,6 @@ document.addEventListener("DOMContentLoaded", () => {
             modal.remove();
         });
 
-        // Close on outside click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
