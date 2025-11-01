@@ -92,6 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const manageEmptyState = document.querySelector("[data-manage-empty]");
     const entryPrintButton = document.querySelector("[data-entry-print]");
     const entryShareButton = document.querySelector("[data-entry-share]");
+    const scrollToTopButton = document.querySelector("[data-scroll-to-top]");
     const overviewTotalHouseholds = document.querySelector("[data-overview-total-households]");
     const overviewPaidHouseholds = document.querySelector("[data-overview-paid-households]");
     const overviewPendingHouseholds = document.querySelector("[data-overview-pending-households]");
@@ -2635,6 +2636,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (currentYear) {
         currentYear.textContent = String(new Date().getFullYear());
+    }
+
+    // Scroll to Top Button Functionality
+    if (scrollToTopButton) {
+        // Show/hide button based on scroll position
+        const toggleScrollButton = () => {
+            if (window.scrollY > 300) {
+                scrollToTopButton.classList.add('visible');
+            } else {
+                scrollToTopButton.classList.remove('visible');
+            }
+        };
+
+        // Scroll to top when button is clicked
+        scrollToTopButton.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Listen for scroll events
+        window.addEventListener('scroll', toggleScrollButton);
+        
+        // Initial check
+        toggleScrollButton();
     }
 
     window.addEventListener("beforeunload", () => {
