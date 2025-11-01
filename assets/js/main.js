@@ -705,7 +705,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const metaLine = document.createElement("p");
         metaLine.className = "print-sheet__meta";
-        metaLine.textContent = `Records: ${latestFilteredDocs.length} • Total Amount: ${formatCurrencyInr(totalAmount)} • Printed: ${new Date().toLocaleString()}`;
+        const istDateTime = new Date().toLocaleString('en-IN', { 
+            timeZone: 'Asia/Kolkata',
+            dateStyle: 'medium',
+            timeStyle: 'medium'
+        });
+        metaLine.textContent = `Records: ${latestFilteredDocs.length} • Total Amount: ${formatCurrencyInr(totalAmount)} • Printed: ${istDateTime} IST`;
         container.appendChild(metaLine);
 
         const table = document.createElement("table");
