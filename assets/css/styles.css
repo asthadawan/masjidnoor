@@ -841,12 +841,34 @@ body {
     box-shadow: 0 12px 24px rgba(0, 100, 0, 0.26);
 }
 
+.dashboard-share-button {
+    margin-top: 1rem;
+    margin-left: 0.75rem;
+    align-self: flex-start;
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.4rem;
+    font-weight: 600;
+    font-family: inherit;
+    background: linear-gradient(135deg, rgba(0, 100, 200, 0.92), rgba(100, 150, 200, 0.92));
+    color: var(--brand-soft-white);
+    cursor: pointer;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.dashboard-share-button:hover,
+.dashboard-share-button:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(0, 100, 200, 0.26);
+}
+
 .print-sheet {
     display: none;
 }
 
 @media print {
     .dashboard-print-button,
+    .dashboard-share-button,
     .manage-entry__btn,
     .payment-options,
     .dashboard-overview,
@@ -1071,5 +1093,125 @@ body {
 
     .entry-table {
         min-width: 600px;
+    }
+}
+
+/* Share Modal Styles */
+.share-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.share-modal__content {
+    background: var(--brand-soft-white);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 300ms ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.share-modal__title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    color: var(--brand-dark-green);
+    font-weight: 700;
+}
+
+.share-modal__text {
+    margin: 0 0 1.5rem 0;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.share-modal__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.share-modal__btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    border: 2px solid rgba(0, 100, 0, 0.2);
+    border-radius: 8px;
+    background: white;
+    color: var(--brand-dark-green);
+    font-weight: 600;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 200ms ease;
+}
+
+.share-modal__btn:hover,
+.share-modal__btn:focus-visible {
+    background: rgba(0, 100, 0, 0.05);
+    border-color: var(--brand-dark-green);
+    transform: translateX(4px);
+}
+
+.share-modal__btn span {
+    font-size: 1.5rem;
+}
+
+.share-modal__close {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.7);
+    font-weight: 600;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 200ms ease;
+}
+
+.share-modal__close:hover,
+.share-modal__close:focus-visible {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 480px) {
+    .share-modal__content {
+        padding: 1.5rem;
+    }
+
+    .share-modal__title {
+        font-size: 1.25rem;
     }
 }

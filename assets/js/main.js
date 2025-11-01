@@ -91,6 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const manageList = document.querySelector("[data-manage-list]");
     const manageEmptyState = document.querySelector("[data-manage-empty]");
     const entryPrintButton = document.querySelector("[data-entry-print]");
+    const entryShareButton = document.querySelector("[data-entry-share]");
     const overviewTotalHouseholds = document.querySelector("[data-overview-total-households]");
     const overviewPaidHouseholds = document.querySelector("[data-overview-paid-households]");
     const overviewPendingHouseholds = document.querySelector("[data-overview-pending-households]");
@@ -1439,6 +1440,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (entryPrintButton) {
             entryPrintButton.setAttribute("hidden", "");
         }
+        if (entryShareButton) {
+            entryShareButton.setAttribute("hidden", "");
+        }
 
         if (entryTableHeadRow) {
             entryTableHeadRow.innerHTML = "";
@@ -1563,6 +1567,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (entryPrintButton) {
             entryPrintButton.removeAttribute("hidden");
+        }
+        if (entryShareButton) {
+            entryShareButton.removeAttribute("hidden");
         }
 
         if (defaultEmptyStateMessage) {
@@ -1889,6 +1896,134 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     }
+
+    if (entryShareButton) {
+        entryShareButton.addEventListener("click", async () => {
+            const container = preparePrintSheetContent();
+            if (!container) {
+                return;
+            }
+
+            // Generate shareable text content
+            const monthLabel = getMonthFilterLabel();
+            const householdLabel = getHouseholdFilterLabel();
+            
+            const totals = latestFilteredDocs.reduce((acc, docSnapshot) => {
+                const data = docSnapshot && typeof docSnapshot.data === "function" ? docSnapshot.data() : null;
+                if (!data) {
+                    return acc;
+                }
+
+                const salaryAmount = toNumberOrNull(data.salaryAmount) || 0;
+                const extraAmountValue = toBoolean(data.extraAmount) ? toNumberOrNull(data.extraAmountValue) || 0 : 0;
+                const gasAmountValue = toBoolean(data.gasRefill) ? toNumberOrNull(data.gasAmount) || 0 : 0;
+
+                acc.salary += salaryAmount;
+                acc.extra += extraAmountValue;
+                acc.gas += gasAmountValue;
+                return acc;
+            }, { salary: 0, extra: 0, gas: 0 });
+
+            const totalAmount = totals.salary + totals.extra + totals.gas;
+
+            const shareText = `مسجد نور بٹھار کمیٹی - Imam Salary Records\n\nMonth: ${monthLabel}\nHousehold: ${householdLabel}\nRecords: ${latestFilteredDocs.length}\nTotal Amount: ${formatCurrencyInr(totalAmount)}\n\nView more at: https://www.masjidnoor.tech`;
+            const shareTitle = "Masjid Noor - Imam Salary Records";
+            const shareUrl = "https://www.masjidnoor.tech";
+
+            // Check if Web Share API is supported
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: shareTitle,
+                        text: shareText,
+                        url: shareUrl
+                    });
+                } catch (error) {
+                    // User cancelled or share failed
+                    if (error.name !== 'AbortError') {
+                        console.error('Error sharing:', error);
+                        fallbackShare(shareText, shareUrl);
+                    }
+                }
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                fallbackShare(shareText, shareUrl);
+            }
+
+            resetPrintSheetContainer();
+        });
+    }
+
+    const fallbackShare = (text, url) => {
+        // Create a modal-like share menu
+        const existingModal = document.querySelector('.share-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'share-modal';
+        modal.innerHTML = `
+            <div class="share-modal__content">
+                <h3 class="share-modal__title">Share Report</h3>
+                <p class="share-modal__text">Choose how to share:</p>
+                <div class="share-modal__buttons">
+                    <button class="share-modal__btn" data-share-action="whatsapp">
+                        <span>📱</span> WhatsApp
+                    </button>
+                    <button class="share-modal__btn" data-share-action="email">
+                        <span>✉️</span> Email
+                    </button>
+                    <button class="share-modal__btn" data-share-action="copy">
+                        <span>📋</span> Copy Text
+                    </button>
+                </div>
+                <button class="share-modal__close" data-share-action="close">Cancel</button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        modal.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-share-action]');
+            if (!target) return;
+
+            const action = target.getAttribute('data-share-action');
+            const encodedText = encodeURIComponent(text);
+            const encodedUrl = encodeURIComponent(url);
+
+            switch (action) {
+                case 'whatsapp':
+                    window.open(`https://wa.me/?text=${encodedText}%0A${encodedUrl}`, '_blank');
+                    break;
+                case 'email':
+                    window.location.href = `mailto:?subject=${encodeURIComponent('Masjid Noor - Imam Salary Records')}&body=${encodedText}%0A%0A${encodedUrl}`;
+                    break;
+                case 'copy':
+                    navigator.clipboard.writeText(`${text}\n${url}`).then(() => {
+                        target.textContent = '✓ Copied!';
+                        setTimeout(() => {
+                            target.innerHTML = '<span>📋</span> Copy Text';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy:', err);
+                    });
+                    return; // Don't close modal immediately for copy action
+                case 'close':
+                    break;
+            }
+
+            modal.remove();
+        });
+
+        // Close on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    };
 
     window.addEventListener("beforeprint", () => {
         preparePrintSheetContent();
