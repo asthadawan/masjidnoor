@@ -1942,6 +1942,20 @@ document.addEventListener("DOMContentLoaded", () => {
                     opacity: container.style.opacity
                 };
                 
+                // Add CSS to prevent row splitting across pages
+                const style = document.createElement('style');
+                style.id = 'pdf-page-break-style';
+                style.textContent = `
+                    .print-sheet__table tbody tr {
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    .print-sheet__table thead {
+                        display: table-header-group !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                
                 // Add class and make visible for capture
                 container.classList.add('print-sheet--visible');
                 container.removeAttribute('hidden');
@@ -1968,144 +1982,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 }));
                 await new Promise(resolve => setTimeout(resolve, 300));
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                const pageWidth = 210; // A4 width in mm
-                const pageHeight = 297; // A4 height in mm
-                const margin = 10;
-                const contentWidth = pageWidth - (2 * margin);
-                
-                // Get table element from container
-                const table = container.querySelector('.print-sheet__table');
-                const thead = table ? table.querySelector('thead') : null;
-                const tbody = table ? table.querySelector('tbody') : null;
-                const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
-                
-                if (!table || !thead || !tbody || rows.length === 0) {
-                    throw new Error('Table content not found');
-                }
-
-                // Capture header section (title, subtitle, etc.) excluding table
-                const headerSection = document.createElement('div');
-                headerSection.className = 'print-sheet';
-                headerSection.style.cssText = container.style.cssText;
-                
-                // Clone all elements before the table
-                const childNodes = Array.from(container.children);
-                childNodes.forEach(child => {
-                    if (child !== table) {
-                        headerSection.appendChild(child.cloneNode(true));
-                    }
-                });
-                
-                container.parentNode.insertBefore(headerSection, container);
-                
-                const headerCanvas = await html2canvas(headerSection, {
+                // Generate PDF from the print sheet content
+                const canvas = await html2canvas(container, {
                     scale: 2,
                     useCORS: true,
                     allowTaint: true,
                     logging: false,
-                    backgroundColor: '#ffffff'
+                    backgroundColor: '#ffffff',
+                    windowHeight: container.scrollHeight
                 });
-                
-                headerSection.remove();
-                
-                const headerImgData = headerCanvas.toDataURL('image/png');
-                const headerHeight = (headerCanvas.height * contentWidth) / headerCanvas.width;
-                
-                // Capture table header
-                const theadClone = thead.cloneNode(true);
-                const tempTableForHeader = document.createElement('table');
-                tempTableForHeader.className = table.className;
-                tempTableForHeader.appendChild(theadClone);
-                
-                const tempContainer = document.createElement('div');
-                tempContainer.className = 'print-sheet print-sheet--visible';
-                tempContainer.style.cssText = container.style.cssText;
-                tempContainer.appendChild(tempTableForHeader);
-                container.parentNode.insertBefore(tempContainer, container);
-                
-                const theadCanvas = await html2canvas(tempContainer, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false,
-                    backgroundColor: '#ffffff'
-                });
-                
-                tempContainer.remove();
-                
-                const theadImgData = theadCanvas.toDataURL('image/png');
-                const theadHeight = (theadCanvas.height * contentWidth) / theadCanvas.width;
-                
-                // Process each row individually
-                let currentY = margin;
-                let isFirstPage = true;
-                
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
-                    
-                    // Create a temporary table with just the current row
-                    const tempTable = document.createElement('table');
-                    tempTable.className = table.className;
-                    const tempTbody = document.createElement('tbody');
-                    tempTbody.appendChild(row.cloneNode(true));
-                    tempTable.appendChild(tempTbody);
-                    
-                    const tempRowContainer = document.createElement('div');
-                    tempRowContainer.className = 'print-sheet print-sheet--visible';
-                    tempRowContainer.style.cssText = container.style.cssText;
-                    tempRowContainer.appendChild(tempTable);
-                    container.parentNode.insertBefore(tempRowContainer, container);
-                    
-                    // Capture the row
-                    const rowCanvas = await html2canvas(tempRowContainer, {
-                        scale: 2,
-                        useCORS: true,
-                        allowTaint: true,
-                        logging: false,
-                        backgroundColor: '#ffffff'
-                    });
-                    
-                    tempRowContainer.remove();
-                    
-                    const rowImgData = rowCanvas.toDataURL('image/png');
-                    const rowHeight = (rowCanvas.height * contentWidth) / rowCanvas.width;
-                    
-                    // Check if we need a new page
-                    const availableHeight = isFirstPage 
-                        ? pageHeight - margin - headerHeight - theadHeight - currentY
-                        : pageHeight - margin - theadHeight - currentY;
-                    
-                    if (rowHeight > availableHeight && !isFirstPage) {
-                        // Start new page
-                        pdf.addPage();
-                        currentY = margin;
-                        
-                        // Add table header on new page
-                        pdf.addImage(theadImgData, 'PNG', margin, currentY, contentWidth, theadHeight);
-                        currentY += theadHeight;
-                    }
-                    
-                    if (isFirstPage) {
-                        // Add header section on first page
-                        pdf.addImage(headerImgData, 'PNG', margin, currentY, contentWidth, headerHeight);
-                        currentY += headerHeight;
-                        
-                        // Add table header on first page
-                        pdf.addImage(theadImgData, 'PNG', margin, currentY, contentWidth, theadHeight);
-                        currentY += theadHeight;
-                        isFirstPage = false;
-                    }
-                    
-                    // Add the row
-                    pdf.addImage(rowImgData, 'PNG', margin, currentY, contentWidth, rowHeight);
-                    currentY += rowHeight;
+
+                // Remove the temporary style
+                const tempStyle = document.getElementById('pdf-page-break-style');
+                if (tempStyle) {
+                    tempStyle.remove();
                 }
 
                 // Restore container state
@@ -2120,6 +2010,95 @@ document.addEventListener("DOMContentLoaded", () => {
                 Object.keys(originalStyles).forEach(key => {
                     container.style[key] = originalStyles[key];
                 });
+
+                if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                    throw new Error('Canvas rendering failed - content may not be visible');
+                }
+
+                const imgData = canvas.toDataURL('image/png');
+                
+                if (!imgData || imgData === 'data:,') {
+                    throw new Error('Failed to generate image from canvas');
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pageWidth = 210; // A4 width in mm
+                const pageHeight = 297; // A4 height in mm
+                const imgWidth = pageWidth;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // Get table and row information for smart page breaks
+                const table = container.querySelector('.print-sheet__table');
+                const tbody = table ? table.querySelector('tbody') : null;
+                const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+                
+                if (rows.length > 0) {
+                    // Calculate positions of each row relative to the container
+                    const containerRect = container.getBoundingClientRect();
+                    const rowPositions = rows.map(row => {
+                        const rect = row.getBoundingClientRect();
+                        return {
+                            top: rect.top - containerRect.top,
+                            bottom: rect.bottom - containerRect.top,
+                            height: rect.height
+                        };
+                    });
+                    
+                    // Convert pixel positions to mm for PDF
+                    const pxToMm = imgHeight / container.scrollHeight;
+                    let currentPage = 0;
+                    let position = 0;
+                    
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    
+                    let heightLeft = imgHeight - pageHeight;
+                    
+                    while (heightLeft > 0) {
+                        currentPage++;
+                        const currentPageTop = currentPage * pageHeight;
+                        const currentPageBottom = (currentPage + 1) * pageHeight;
+                        
+                        // Find if any row is being split across this page boundary
+                        let adjustedPageBreak = currentPageBottom;
+                        
+                        for (let i = 0; i < rowPositions.length; i++) {
+                            const rowTop = rowPositions[i].top * pxToMm;
+                            const rowBottom = rowPositions[i].bottom * pxToMm;
+                            
+                            // Check if this row spans the page boundary
+                            if (rowTop < currentPageBottom && rowBottom > currentPageBottom) {
+                                // Row is being split - move page break to before this row
+                                adjustedPageBreak = rowTop;
+                                break;
+                            }
+                        }
+                        
+                        // Calculate the position for the next page
+                        const nextPosition = adjustedPageBreak - imgHeight;
+                        
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, nextPosition, imgWidth, imgHeight);
+                        
+                        heightLeft = imgHeight - adjustedPageBreak - pageHeight;
+                    }
+                } else {
+                    // Fallback to simple pagination if no rows found
+                    let heightLeft = imgHeight - pageHeight;
+                    let position = 0;
+                    
+                    while (heightLeft > 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                }
 
                 // Generate filename
                 const monthLabel = getMonthFilterLabel();
