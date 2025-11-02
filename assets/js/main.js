@@ -1942,20 +1942,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     opacity: container.style.opacity
                 };
                 
-                // Add CSS to prevent row splitting across pages
-                const style = document.createElement('style');
-                style.id = 'pdf-page-break-style';
-                style.textContent = `
-                    .print-sheet__table tbody tr {
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    .print-sheet__table thead {
-                        display: table-header-group !important;
-                    }
-                `;
-                document.head.appendChild(style);
-                
                 // Add class and make visible for capture
                 container.classList.add('print-sheet--visible');
                 container.removeAttribute('hidden');
@@ -1988,15 +1974,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     useCORS: true,
                     allowTaint: true,
                     logging: false,
-                    backgroundColor: '#ffffff',
-                    windowHeight: container.scrollHeight
+                    backgroundColor: '#ffffff'
                 });
-
-                // Remove the temporary style
-                const tempStyle = document.getElementById('pdf-page-break-style');
-                if (tempStyle) {
-                    tempStyle.remove();
-                }
 
                 // Restore container state
                 if (!hadPrintClass) {
@@ -2028,76 +2007,20 @@ document.addEventListener("DOMContentLoaded", () => {
                     format: 'a4'
                 });
 
-                const pageWidth = 210; // A4 width in mm
+                const imgWidth = 210; // A4 width in mm
                 const pageHeight = 297; // A4 height in mm
-                const imgWidth = pageWidth;
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                
-                // Get table and row information for smart page breaks
-                const table = container.querySelector('.print-sheet__table');
-                const tbody = table ? table.querySelector('tbody') : null;
-                const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
-                
-                if (rows.length > 0) {
-                    // Calculate positions of each row relative to the container
-                    const containerRect = container.getBoundingClientRect();
-                    const rowPositions = rows.map(row => {
-                        const rect = row.getBoundingClientRect();
-                        return {
-                            top: rect.top - containerRect.top,
-                            bottom: rect.bottom - containerRect.top,
-                            height: rect.height
-                        };
-                    });
-                    
-                    // Convert pixel positions to mm for PDF
-                    const pxToMm = imgHeight / container.scrollHeight;
-                    let currentPage = 0;
-                    let position = 0;
-                    
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
                     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    
-                    let heightLeft = imgHeight - pageHeight;
-                    
-                    while (heightLeft > 0) {
-                        currentPage++;
-                        const currentPageTop = currentPage * pageHeight;
-                        const currentPageBottom = (currentPage + 1) * pageHeight;
-                        
-                        // Find if any row is being split across this page boundary
-                        let adjustedPageBreak = currentPageBottom;
-                        
-                        for (let i = 0; i < rowPositions.length; i++) {
-                            const rowTop = rowPositions[i].top * pxToMm;
-                            const rowBottom = rowPositions[i].bottom * pxToMm;
-                            
-                            // Check if this row spans the page boundary
-                            if (rowTop < currentPageBottom && rowBottom > currentPageBottom) {
-                                // Row is being split - move page break to before this row
-                                adjustedPageBreak = rowTop;
-                                break;
-                            }
-                        }
-                        
-                        // Calculate the position for the next page
-                        const nextPosition = adjustedPageBreak - imgHeight;
-                        
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, nextPosition, imgWidth, imgHeight);
-                        
-                        heightLeft = imgHeight - adjustedPageBreak - pageHeight;
-                    }
-                } else {
-                    // Fallback to simple pagination if no rows found
-                    let heightLeft = imgHeight - pageHeight;
-                    let position = 0;
-                    
-                    while (heightLeft > 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
-                    }
+                    heightLeft -= pageHeight;
                 }
 
                 // Generate filename
