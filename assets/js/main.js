@@ -107,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const weatherWidget = document.querySelector("[data-weather-widget]");
     const weatherTemp = document.querySelector("[data-weather-temp]");
     const weatherCondition = document.querySelector("[data-weather-condition]");
+    const weatherHumidity = document.querySelector("[data-weather-humidity]");
     const weatherHourly = document.querySelector("[data-weather-hourly]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
     const defaultSubmitButtonLabel = entrySubmitButton ? entrySubmitButton.textContent : "";
@@ -2819,12 +2820,12 @@ document.addEventListener("DOMContentLoaded", () => {
                              // Or if it's just epoch
                              displayHours = hours.filter(h => {
                                  const hTime = new Date(h.time_epoch ? h.time_epoch * 1000 : h.time);
-                                 return hTime.getHours() >= currentHour;
+                                 return hTime.getHours() > currentHour;
                              });
                         }
 
-                        // Limit to next 5-6 hours for display
-                        displayHours = displayHours.slice(0, 8);
+                        // Limit to next 4 hours for display
+                        displayHours = displayHours.slice(0, 4);
 
                         displayHours.forEach((hour, index) => {
                             const time = new Date(hour.time_epoch ? hour.time_epoch * 1000 : hour.time);
