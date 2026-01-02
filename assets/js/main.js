@@ -174,28 +174,41 @@ document.addEventListener("DOMContentLoaded", () => {
         return { monthName, year };
     };
 
-    const updateDashboardSubheading = ({ monthName, year } = {}) => {
+    const updateDashboardSubheading = (year = null) => {
         if (!dashboardSubheading) {
             return;
         }
 
-        let targetMonth = monthName;
-        let targetYear = year;
+        const monthValue = filterMonthSelect ? filterMonthSelect.value : "all";
+        const householdValue = filterHouseholdSelect ? filterHouseholdSelect.value : "";
 
-        if (!targetMonth) {
-            const previous = getPreviousMonthDetails();
-            targetMonth = previous.monthName;
-            targetYear = previous.year;
-        } else if (!targetYear) {
-            targetYear = new Date().getFullYear();
-        }
+        const isAllMonths = !monthValue || monthValue === "all";
+        const isAllHouseholds = !householdValue;
 
-        if (!targetMonth) {
-            dashboardSubheading.textContent = "";
+        if (isAllMonths && isAllHouseholds) {
+            dashboardSubheading.textContent = "Masjid Imam Overall Salary Collection";
             return;
         }
 
-        dashboardSubheading.textContent = `Masjid Imam Salary For the month ${targetMonth} ${targetYear}`;
+        if (isAllMonths && !isAllHouseholds) {
+            const householdName = getSelectedOptionText(filterHouseholdSelect, householdValue);
+            dashboardSubheading.textContent = `Masjid Imam Salary By ${householdName} Till Now`;
+            return;
+        }
+
+        const displayYear = year || new Date().getFullYear();
+        const monthName = getSelectedOptionText(filterMonthSelect, monthValue);
+
+        if (!isAllMonths && isAllHouseholds) {
+            dashboardSubheading.textContent = `Masjid Imam Salary for the month of ${monthName} ${displayYear} by All`;
+            return;
+        }
+
+        if (!isAllMonths && !isAllHouseholds) {
+            const householdName = getSelectedOptionText(filterHouseholdSelect, householdValue);
+            dashboardSubheading.textContent = `Masjid Imam Salary for the month of ${monthName} ${displayYear} by ${householdName}`;
+            return;
+        }
     };
 
     let latestEntryDocs = [];
@@ -1530,18 +1543,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
         updateOverviewMetrics(filteredDocs);
 
-        if (!filterMonthSelect || filterMonthSelect.value === "all") {
-            updateDashboardSubheading();
-        } else {
+        let yearForHeading = null;
+        if (filterMonthSelect && filterMonthSelect.value !== "all") {
             const filteredYear = filteredDocs.reduce((acc, docSnapshot) => {
                 if (acc) {
                     return acc;
                 }
                 return deriveYearFromDocument(docSnapshot);
             }, null);
-            const fallbackYear = filteredYear || new Date().getFullYear();
-            updateDashboardSubheading({ monthName: filterMonthSelect.value, year: fallbackYear });
+            yearForHeading = filteredYear || new Date().getFullYear();
         }
+
+        updateDashboardSubheading(yearForHeading);
 
         if (!filteredDocs.length) {
             entryTableWrapper.setAttribute("hidden", "");
