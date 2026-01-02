@@ -190,13 +190,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const isAllHouseholds = !householdValue;
 
         if (isAllMonths && isAllHouseholds) {
-            dashboardSubheading.textContent = "Masjid Imam Overall Salary Collection";
+            dashboardSubheading.textContent = formatTitleCase("Masjid Imam Overall Salary Collection");
             return;
         }
 
         if (isAllMonths && !isAllHouseholds) {
             const householdName = getSelectedOptionText(filterHouseholdSelect, householdValue);
-            dashboardSubheading.textContent = `Masjid Imam Salary By ${householdName} Till Now`;
+            dashboardSubheading.textContent = formatTitleCase(`Masjid Imam Salary By ${householdName} Till Now`);
             return;
         }
 
@@ -204,13 +204,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const monthName = getSelectedOptionText(filterMonthSelect, monthValue);
 
         if (!isAllMonths && isAllHouseholds) {
-            dashboardSubheading.textContent = `Masjid Imam Salary for the month of ${monthName} ${displayYear} by All`;
+            dashboardSubheading.textContent = formatTitleCase(`Masjid Imam Salary for the month of ${monthName} ${displayYear} by All`);
             return;
         }
 
         if (!isAllMonths && !isAllHouseholds) {
             const householdName = getSelectedOptionText(filterHouseholdSelect, householdValue);
-            dashboardSubheading.textContent = `Masjid Imam Salary for the month of ${monthName} ${displayYear} by ${householdName}`;
+            dashboardSubheading.textContent = formatTitleCase(`Masjid Imam Salary for the month of ${monthName} ${displayYear} by ${householdName}`);
             return;
         }
     };
@@ -2766,11 +2766,19 @@ document.addEventListener("DOMContentLoaded", () => {
             // data.current.temp_c, data.current.condition.text, data.current.humidity
             
             const current = data.current || data;
-            const temp = current.temp_c !== undefined ? current.temp_c : (current.temp_f !== undefined ? (current.temp_f - 32) * 5/9 : null);
+            // Try multiple properties for temperature
+            let temp = current.temp_c;
+            if (temp === undefined) temp = current.temp_C;
+            if (temp === undefined) temp = current.temp;
+            if (temp === undefined) temp = current.temperature;
+            if (temp === undefined && current.temp_f !== undefined) {
+                temp = (current.temp_f - 32) * 5/9;
+            }
+
             const conditionText = current.condition ? (current.condition.text || current.condition) : "Unknown";
             const humidity = current.humidity;
 
-            if (temp !== null) {
+            if (temp !== undefined && temp !== null) {
                 weatherTemp.textContent = `${Math.round(temp)}°C`;
             }
             
