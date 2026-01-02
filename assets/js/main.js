@@ -369,28 +369,44 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const baseMonth = month.toString();
+        let year = null;
+        let paymentMonthIndex = null;
 
         if (timestamp) {
             try {
                 const dateInstance = typeof timestamp.toDate === "function" ? timestamp.toDate() : null;
                 const date = dateInstance instanceof Date ? dateInstance : new Date(timestamp);
                 if (!Number.isNaN(date.getTime())) {
-                    return `${baseMonth} ${date.getFullYear()}`;
+                    year = date.getFullYear();
+                    paymentMonthIndex = date.getMonth();
                 }
             } catch (error) {
                 // Ignore and fall back to alternate sources.
             }
         }
 
-        if (fallbackDate) {
+        if (!year && fallbackDate) {
             const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
             const match = isoPattern.exec(fallbackDate);
             if (match) {
-                const [, year] = match;
-                if (year) {
-                    return `${baseMonth} ${year}`;
+                const [, y, m] = match;
+                if (y) {
+                    year = Number(y);
+                    paymentMonthIndex = Number(m) - 1;
                 }
             }
+        }
+
+        if (year) {
+            const salaryMonthIndex = monthNames.findIndex((m) => m.toLowerCase() === baseMonth.toLowerCase());
+            if (salaryMonthIndex !== -1 && paymentMonthIndex !== null) {
+                // If the salary month is later in the year than the payment month,
+                // it implies the salary belongs to the previous year.
+                if (salaryMonthIndex > paymentMonthIndex) {
+                    year -= 1;
+                }
+            }
+            return `${baseMonth} ${year}`;
         }
 
         return baseMonth;
@@ -601,27 +617,49 @@ document.addEventListener("DOMContentLoaded", () => {
             return null;
         }
 
+        let year = null;
+        let paymentMonthIndex = null;
+
         const paymentYear = parseIsoDateToYear(data.paymentDate);
         if (paymentYear) {
-            return paymentYear;
+            year = paymentYear;
+            const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+            const match = isoPattern.exec(data.paymentDate);
+            if (match) {
+                paymentMonthIndex = Number(match[2]) - 1;
+            }
+        } else {
+            const createdAt = data.createdAt;
+            if (createdAt && typeof createdAt.toDate === "function") {
+                const date = createdAt.toDate();
+                if (date instanceof Date && !Number.isNaN(date.getTime())) {
+                    year = date.getFullYear();
+                    paymentMonthIndex = date.getMonth();
+                }
+            } else if (createdAt instanceof Date && !Number.isNaN(createdAt.getTime())) {
+                year = createdAt.getFullYear();
+                paymentMonthIndex = createdAt.getMonth();
+            } else if (createdAt && typeof createdAt.seconds === "number") {
+                const date = new Date(createdAt.seconds * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    year = date.getFullYear();
+                    paymentMonthIndex = date.getMonth();
+                }
+            }
         }
 
-        const createdAt = data.createdAt;
-        if (createdAt && typeof createdAt.toDate === "function") {
-            const date = createdAt.toDate();
-            if (date instanceof Date && !Number.isNaN(date.getTime())) {
-                return date.getFullYear();
-            }
-        } else if (createdAt instanceof Date && !Number.isNaN(createdAt.getTime())) {
-            return createdAt.getFullYear();
-        } else if (createdAt && typeof createdAt.seconds === "number") {
-            const date = new Date(createdAt.seconds * 1000);
-            if (!Number.isNaN(date.getTime())) {
-                return date.getFullYear();
+        if (year && data.month) {
+            const salaryMonthIndex = monthNames.findIndex((m) => m.toLowerCase() === data.month.toLowerCase());
+            if (salaryMonthIndex !== -1 && paymentMonthIndex !== null) {
+                // If the salary month is later in the year than the payment month,
+                // it implies the salary belongs to the previous year.
+                if (salaryMonthIndex > paymentMonthIndex) {
+                    year -= 1;
+                }
             }
         }
 
-        return null;
+        return year;
     };
 
     const getDocSortTimestamps = (docSnapshot) => {
