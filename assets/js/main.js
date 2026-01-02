@@ -2734,7 +2734,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const fetchWeather = async () => {
-        if (!weatherWidget || !weatherTemp || !weatherCondition || !weatherHumidity) {
+        if (!weatherWidget || !weatherTemp || !weatherCondition) {
+            console.warn("Weather widget elements not found");
             return;
         }
 
@@ -2773,11 +2774,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     weatherCondition.textContent = conditionText;
                 }
                 
-                if (humidity !== undefined) {
+                if (humidity !== undefined && weatherHumidity) {
                     weatherHumidity.textContent = `${humidity}%`;
                 }
 
                 weatherWidget.removeAttribute("hidden");
+            } else {
+                console.error("Weather API error:", currentResponse.status);
             }
 
             // Fetch Hourly Forecast
@@ -2789,8 +2792,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (hourlyResponse.ok) {
                     const hourlyData = await hourlyResponse.json();
-                    // Assuming structure: data.forecast.forecastday[0].hour or data.hour
-                    // Or if it's a flat array of hours
                     let hours = [];
                     if (Array.isArray(hourlyData)) {
                         hours = hourlyData;
@@ -2804,21 +2805,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         weatherHourly.innerHTML = "";
                         weatherHourly.removeAttribute("hidden");
                         
-                        // Get next 24 hours or remaining hours of today
                         const now = new Date();
                         const currentHour = now.getHours();
                         
-                        // Filter for future hours if the API returns full day
-                        // If API returns next 24h directly, we use that.
-                        // Let's assume it returns full day (0-23) for today.
-                        
                         let displayHours = hours;
                         
-                        // Simple check if it has time property to filter
-                        if (hours[0] && hours[0].time) {
-                             // If time is "YYYY-MM-DD HH:MM", parse it
-                             // Or if it's just epoch
+                        if (hours[0] && (hours[0].time || hours[0].time_epoch)) {
                              displayHours = hours.filter(h => {
+                                 // Handle both epoch and string time
                                  const hTime = new Date(h.time_epoch ? h.time_epoch * 1000 : h.time);
                                  return hTime.getHours() > currentHour;
                              });
