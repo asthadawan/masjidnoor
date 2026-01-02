@@ -113,6 +113,24 @@ body {
     border: 1px solid rgba(0, 100, 0, 0.08);
     gap: 0.5rem;
     text-align: center;
+    animation: weatherFadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.weather-widget:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 100, 0, 0.1);
+}
+
+@keyframes weatherFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .weather-widget__main {
