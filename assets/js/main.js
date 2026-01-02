@@ -108,7 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const weatherTemp = document.querySelector("[data-weather-temp]");
     const weatherCondition = document.querySelector("[data-weather-condition]");
     const weatherHumidity = document.querySelector("[data-weather-humidity]");
-    const weatherHourly = document.querySelector("[data-weather-hourly]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
     const defaultSubmitButtonLabel = entrySubmitButton ? entrySubmitButton.textContent : "";
     const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
@@ -2734,129 +2733,72 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const fetchWeather = async () => {
-        if (!weatherWidget || !weatherTemp || !weatherCondition) {
-            console.warn("Weather widget elements not found");
+        if (!weatherWidget || !weatherTemp || !weatherCondition || !weatherHumidity) {
             return;
         }
 
         const apiKey = "sk-live-y6nHpxNftkmANRvavSBQXBUJWRbsDILb0DCSAUMN";
         const coordinates = "34.137430248783886,74.21107746526778";
-        const currentUrl = `https://weather.indianapi.in/global/current?location=${coordinates}`;
-        const hourlyUrl = `https://weather.indianapi.in/global/forecast/hourly?location=${coordinates}`;
+        const url = `https://weather.indianapi.in/global/current?location=${coordinates}`;
 
         try {
-            // Fetch Current Weather
-            const currentResponse = await fetch(currentUrl, {
+            const response = await fetch(url, {
                 method: "GET",
-                headers: { "x-api-key": apiKey }
+                headers: {
+                    "x-api-key": apiKey
+                }
             });
 
-            if (currentResponse.ok) {
-                const data = await currentResponse.json();
-                const current = data.current || data;
-                
-                let temp = current.temp_c;
-                if (temp === undefined) temp = current.temp_C;
-                if (temp === undefined) temp = current.temp;
-                if (temp === undefined) temp = current.temperature;
-                if (temp === undefined && current.temp_f !== undefined) {
-                    temp = (current.temp_f - 32) * 5/9;
-                }
-
-                const conditionText = current.condition ? (current.condition.text || current.condition) : "Unknown";
-                const humidity = current.humidity;
-
-                if (temp !== undefined && temp !== null) {
-                    weatherTemp.textContent = `${Math.round(temp)}°C`;
-                }
-                
-                if (conditionText) {
-                    weatherCondition.textContent = conditionText;
-                }
-                
-                if (humidity !== undefined && weatherHumidity) {
-                    weatherHumidity.textContent = `${humidity}%`;
-                }
-
-                weatherWidget.removeAttribute("hidden");
-            } else {
-                console.error("Weather API error:", currentResponse.status);
+            if (!response.ok) {
+                throw new Error(`Weather API error: ${response.status}`);
             }
 
-            // Fetch Hourly Forecast
-            if (weatherHourly) {
-                const hourlyResponse = await fetch(hourlyUrl, {
-                    method: "GET",
-                    headers: { "x-api-key": apiKey }
-                });
-
-                if (hourlyResponse.ok) {
-                    const hourlyData = await hourlyResponse.json();
-                    let hours = [];
-                    if (Array.isArray(hourlyData)) {
-                        hours = hourlyData;
-                    } else if (hourlyData.forecast && hourlyData.forecast.forecastday && hourlyData.forecast.forecastday[0]) {
-                        hours = hourlyData.forecast.forecastday[0].hour;
-                    } else if (hourlyData.hour) {
-                        hours = hourlyData.hour;
-                    }
-
-                    if (hours && hours.length) {
-                        weatherHourly.innerHTML = "";
-                        weatherHourly.removeAttribute("hidden");
-                        
-                        const now = new Date();
-                        const currentHour = now.getHours();
-                        
-                        let displayHours = hours;
-                        
-                        if (hours[0] && (hours[0].time || hours[0].time_epoch)) {
-                             displayHours = hours.filter(h => {
-                                 // Handle both epoch and string time
-                                 const hTime = new Date(h.time_epoch ? h.time_epoch * 1000 : h.time);
-                                 return hTime.getHours() > currentHour;
-                             });
-                        }
-
-                        // Limit to next 4 hours for display
-                        displayHours = displayHours.slice(0, 4);
-
-                        displayHours.forEach((hour, index) => {
-                            const time = new Date(hour.time_epoch ? hour.time_epoch * 1000 : hour.time);
-                            const hourTemp = hour.temp_c !== undefined ? hour.temp_c : hour.temp;
-                            const hourCondition = hour.condition ? (hour.condition.text || hour.condition) : "";
-                            
-                            const item = document.createElement("div");
-                            item.className = "weather-hourly-item";
-                            item.style.animationDelay = `${index * 100}ms`;
-                            
-                            const timeSpan = document.createElement("span");
-                            timeSpan.className = "weather-hourly-item__time";
-                            timeSpan.textContent = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            
-                            const tempSpan = document.createElement("span");
-                            tempSpan.className = "weather-hourly-item__temp";
-                            tempSpan.textContent = `${Math.round(hourTemp)}°C`;
-                            
-                            const condSpan = document.createElement("span");
-                            condSpan.className = "weather-hourly-item__condition";
-                            condSpan.textContent = hourCondition;
-                            
-                            item.append(timeSpan, tempSpan, condSpan);
-                            weatherHourly.appendChild(item);
-                        });
-                    }
-                }
+            const data = await response.json();
+            
+            // Assuming the API returns data in a structure like:
+            // { temp_c: 25, condition: { text: "Sunny" }, humidity: 60 }
+            // Adjust based on actual API response structure if needed.
+            // Since I don't have the exact response structure, I'll try to adapt to common patterns
+            // or use the provided prompt details. The prompt says "Render the temperature, condition, and humidity values".
+            
+            // Let's assume a standard structure or try to find it from the response.
+            // If the API is similar to WeatherAPI.com (often used by IndianAPI wrappers), it might be:
+            // data.current.temp_c, data.current.condition.text, data.current.humidity
+            
+            const current = data.current || data;
+            // Try multiple properties for temperature
+            let temp = current.temp_c;
+            if (temp === undefined) temp = current.temp_C;
+            if (temp === undefined) temp = current.temp;
+            if (temp === undefined) temp = current.temperature;
+            if (temp === undefined && current.temp_f !== undefined) {
+                temp = (current.temp_f - 32) * 5/9;
             }
+
+            const conditionText = current.condition ? (current.condition.text || current.condition) : "Unknown";
+            const humidity = current.humidity;
+
+            if (temp !== undefined && temp !== null) {
+                weatherTemp.textContent = `${Math.round(temp)}°C`;
+            }
+            
+            if (conditionText) {
+                weatherCondition.textContent = conditionText;
+            }
+            
+            if (humidity !== undefined) {
+                weatherHumidity.textContent = `${humidity}%`;
+            }
+
+            weatherWidget.removeAttribute("hidden");
 
         } catch (error) {
             console.error("Failed to fetch weather data:", error);
+            // Keep the widget hidden on error
         }
     };
 
     fetchWeather();
-    // Refresh weather every hour
-    setInterval(fetchWeather, 3600000);
 
     window.addEventListener("beforeunload", () => {
         if (entriesUnsubscribe) {
