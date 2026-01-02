@@ -27,6 +27,15 @@
                         <div class="panel-card dashboard-card" data-entry-dashboard>
                             <section class="dashboard-overview" data-dashboard-overview aria-labelledby="dashboard-overview-title">
                                 <h3 class="dashboard-overview__title" id="dashboard-overview-title">Dashboard Overview</h3>
+                                <div class="weather-widget" data-weather-widget hidden>
+                                    <div class="weather-widget__main">
+                                        <span class="weather-widget__temp" data-weather-temp>--°C</span>
+                                        <span class="weather-widget__condition" data-weather-condition>--</span>
+                                    </div>
+                                    <div class="weather-widget__details">
+                                        <span class="weather-widget__humidity">Humidity: <span data-weather-humidity>--%</span></span>
+                                    </div>
+                                </div>
                                 <div class="dashboard-overview__metrics">
                                     <article class="overview-metric">
                                         <span class="overview-metric__label">Total Households</span>

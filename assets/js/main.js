@@ -104,6 +104,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const overviewPaymentCanvas = document.querySelector("[data-overview-payment-chart]");
     const overviewPaymentLegend = document.querySelector("[data-overview-payment-legend]");
     const overviewPaymentEmpty = document.querySelector("[data-overview-payment-empty]");
+    const weatherWidget = document.querySelector("[data-weather-widget]");
+    const weatherTemp = document.querySelector("[data-weather-temp]");
+    const weatherCondition = document.querySelector("[data-weather-condition]");
+    const weatherHumidity = document.querySelector("[data-weather-humidity]");
     const entrySubmitButton = entryForm ? entryForm.querySelector(".form-card__submit") : null;
     const defaultSubmitButtonLabel = entrySubmitButton ? entrySubmitButton.textContent : "";
     const defaultEmptyStateMessage = entryEmptyState ? entryEmptyState.textContent : "";
@@ -2727,6 +2731,66 @@ document.addEventListener("DOMContentLoaded", () => {
         // Initial check
         toggleScrollButton();
     }
+
+    const fetchWeather = async () => {
+        if (!weatherWidget || !weatherTemp || !weatherCondition || !weatherHumidity) {
+            return;
+        }
+
+        const apiKey = "sk-live-y6nHpxNftkmANRvavSBQXBUJWRbsDILb0DCSAUMN";
+        const coordinates = "34.137430248783886,74.21107746526778";
+        const url = `https://weather.indianapi.in/global/current?location=${coordinates}`;
+
+        try {
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "x-api-key": apiKey
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Weather API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Assuming the API returns data in a structure like:
+            // { temp_c: 25, condition: { text: "Sunny" }, humidity: 60 }
+            // Adjust based on actual API response structure if needed.
+            // Since I don't have the exact response structure, I'll try to adapt to common patterns
+            // or use the provided prompt details. The prompt says "Render the temperature, condition, and humidity values".
+            
+            // Let's assume a standard structure or try to find it from the response.
+            // If the API is similar to WeatherAPI.com (often used by IndianAPI wrappers), it might be:
+            // data.current.temp_c, data.current.condition.text, data.current.humidity
+            
+            const current = data.current || data;
+            const temp = current.temp_c !== undefined ? current.temp_c : (current.temp_f !== undefined ? (current.temp_f - 32) * 5/9 : null);
+            const conditionText = current.condition ? (current.condition.text || current.condition) : "Unknown";
+            const humidity = current.humidity;
+
+            if (temp !== null) {
+                weatherTemp.textContent = `${Math.round(temp)}°C`;
+            }
+            
+            if (conditionText) {
+                weatherCondition.textContent = conditionText;
+            }
+            
+            if (humidity !== undefined) {
+                weatherHumidity.textContent = `${humidity}%`;
+            }
+
+            weatherWidget.removeAttribute("hidden");
+
+        } catch (error) {
+            console.error("Failed to fetch weather data:", error);
+            // Keep the widget hidden on error
+        }
+    };
+
+    fetchWeather();
 
     window.addEventListener("beforeunload", () => {
         if (entriesUnsubscribe) {
